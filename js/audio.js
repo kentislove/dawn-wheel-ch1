@@ -67,6 +67,8 @@ const SND = (() => {
     c.gain.gain.cancelScheduledValues(t); c.gain.gain.setValueAtTime(c.gain.gain.value, t); c.gain.gain.linearRampToValueAtTime(0, t + 0.5);
     c.src.stop(t + 0.55);
   }
+  // v13：播開場 MV 時先把音樂停掉（MV 自己有歌）
+  function stopMusic() { want = null; if (ctx && cur) fadeOut(cur); cur = null; }
   // 戰鬥演出時音樂壓小聲，讓音效聽得清楚
   function setDuck(on) {
     duck = on ? 0.35 : 1;
@@ -80,7 +82,7 @@ const SND = (() => {
     muted = m; try { localStorage.setItem('srw_mute', m ? '1' : '0'); } catch (e) { /* 忽略 */ }
     if (master) master.gain.value = m ? 0 : 1;
   }
-  return { se, music, stopBattle, setDuck, setVariant, setMuted, get variant() { return variant; }, get muted() { return muted; }, has: (k) => k in man,
+  return { se, music, stopMusic, stopBattle, setDuck, setVariant, setMuted, get variant() { return variant; }, get muted() { return muted; }, has: (k) => k in man,
     get playing() { return cur ? cur.key : null; }, get state() { return ctx ? ctx.state : 'locked'; } };   // playing／state：除錯用
 })();
 

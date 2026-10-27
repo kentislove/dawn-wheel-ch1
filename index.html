@@ -155,13 +155,52 @@
     <div class="title-sub">超級機器人大戰 原創企劃</div>
     <h1>破曉因果之輪</h1>
     <div class="title-chapter">第一大關【殖民衛星外環防衛線】</div>
-    <button class="btn big" id="btnNew">從 1-1 開始</button>
-    <button class="btn big" id="btnContinue" style="display:none">繼續</button>
-    <div class="title-row"><select id="stageSelect"></select><button class="btn" id="btnSelect">從這一節開始</button></div>
-    <label class="chk"><input type="checkbox" id="chkAnim"> 戰鬥動畫（我方招式、敵方招式、反擊都播）</label>
-    <label class="chk"><input type="checkbox" id="chkDebug"> 開發者模式（顯示隱藏旗標）</label>
+    <!-- v13：標題選單（開發者 10-27：開啟新遊戲、存檔、讀取、金手指密碼；MV 只在第一次播，這裡可以重看） -->
+    <div class="title-menu">
+      <button class="btn big" id="btnNew">開啟新遊戲</button>
+      <button class="btn big" id="btnContinue" style="display:none">繼續</button>
+      <button class="btn big" id="btnLoad">讀取</button>
+      <button class="btn big" id="btnSave">存檔</button>
+      <button class="btn big" id="btnCheat">金手指密碼</button>
+      <button class="btn big" id="btnWatchMV">觀看 MV</button>
+    </div>
+    <div class="cheat-on" id="cheatOn"></div>
+    <details class="title-more"><summary>其他設定</summary>
+      <div class="title-row"><select id="stageSelect"></select><button class="btn" id="btnSelect">從這一節開始</button></div>
+      <label class="chk"><input type="checkbox" id="chkAnim"> 戰鬥動畫（我方招式、敵方招式、反擊都播）</label>
+      <label class="chk"><input type="checkbox" id="chkDebug"> 開發者模式（顯示隱藏旗標）</label>
+    </details>
     <div class="title-note">操作：左鍵選取、移動、選指令；右鍵或 Esc 取消。對話中點一下或按 Enter 繼續。</div>
   </div>
+</div>
+
+<!-- v13：存檔／讀取欄位 -->
+<div class="modal" id="slotModal" style="display:none">
+  <div class="modal-box center"><h2 id="slotTitle">讀取</h2><p class="slot-hint" id="slotHint"></p>
+    <div class="slot-list" id="slotList"></div>
+    <div class="modal-foot"><button class="btn" id="slotClose">返回</button></div></div>
+</div>
+
+<!-- v13：過關後的幕間（可以存檔再繼續） -->
+<div class="modal" id="interlude" style="display:none">
+  <div class="modal-box center"><h2>作戰成功</h2><p id="ilText"></p>
+    <div class="modal-foot"><button class="btn go" id="ilNext">繼續下一節</button><button class="btn" id="ilSave">存檔</button><button class="btn" id="ilTitle">回標題</button></div></div>
+</div>
+
+<!-- v13：金手指密碼 -->
+<div class="modal" id="cheatModal" style="display:none">
+  <div class="modal-box center"><h2>金手指密碼</h2>
+    <input class="cheat-input" id="cheatInput" maxlength="24" autocomplete="off" placeholder="輸入密碼後按 Enter">
+    <p class="cheat-msg" id="cheatMsg">同一個密碼再打一次就關閉；輸入 OFF 全部關閉。</p>
+    <div class="cheat-list" id="cheatList"></div>
+    <div class="modal-foot"><button class="btn go" id="cheatOk">輸入</button><button class="btn" id="cheatClose">返回</button></div></div>
+</div>
+
+<!-- v13：開場 MV（第一次進來時播；標題「觀看 MV」可重看） -->
+<div class="mv-layer" id="mvLayer" style="display:none">
+  <div class="mv-start" id="mvStart"><div class="mv-start-title">破曉因果之輪</div><div class="mv-start-hint">點一下畫面開始</div></div>
+  <video id="mvVideo" playsinline preload="none" poster="assets/mv/opening_mv_poster.jpg"></video>
+  <button class="mv-skip" id="mvSkip">跳過 ▶▶</button>
 </div>
 
 <!-- 章節結尾 -->
@@ -176,6 +215,7 @@
 
 <script src="js/data.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/cheats.js"></script>
 <script src="js/battle_bg.js"></script>
 <script src="anim/runtime/battle_anim_player.js"></script>
 <script src="anim/runtime/battle_react_player.js"></script>

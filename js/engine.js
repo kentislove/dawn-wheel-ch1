@@ -55,6 +55,7 @@ function gainExp(u, amount) {
   if (!hasLevel(u.pilotId) || u.team !== 'player') return;
   const r = rosterOf(u.pilotId), L = LEVELING;
   if (r.lv >= L.maxLevel) return;
+  if (CHEAT.on('exp5')) amount *= 5;   // v13：金手指
   r.exp += amount;
   // v9：拿到經驗值時要看得到 → 記錄一行，並在地圖上機體頭頂飄出「＋經驗」
   log(`✨ ${u.pilot} 經驗值 +${amount}（Lv ${r.lv}・${Math.min(r.exp, L.expPerLevel)}/${L.expPerLevel}）`, 'player');
@@ -139,7 +140,7 @@ function mkUnit(type, o = {}) {
 }
 // v5：加上 debuff 之後的實際數值
 const effMobility = (u) => u.mobility + (u.debuff.mobility || 0);
-const effMove = (u) => Math.max(0, u.move + (u.debuff.move || 0));   // v6：零度雷射可讓移動歸零
+const effMove = (u) => Math.max(0, u.move + (u.debuff.move || 0) + (u.team === 'player' && CHEAT.on('moveup') ? 3 : 0));   // v13：金手指 moveup   // v6：零度雷射可讓移動歸零
 const effArmor = (u) => Math.max(0, u.armor * (1 + (u.debuff.armorPct || 0) / 100) + (u.debuff.armorFlat || 0));
 // 命中後套用武器的 debuff：持續到「對方自己的下一個回合結束」
 function applyDebuff(def, w) {
@@ -213,6 +214,7 @@ function calcHit(att, def, w, resp) {
   if (def.kind !== 'unit') return 100;
   if (def.spirit.flash) return 0;
   if (att.spirit.surehit || w.surehit) return 100;   // v5：武器本身必中（E09 時間停止）
+  if (att.team === 'player' && CHEAT.on('surehit')) return 100;   // v13：金手指
   const t = terrainAt(def.x, def.y);
   // 機戰式：運動性差距直接影響命中（真實系很會閃、超級系很耐打）
   let h = 70 + w.hit + (effMobility(att) - effMobility(def)) - t.eva - def.evaBonus;
@@ -236,6 +238,8 @@ function calcDmg(att, def, w, resp) {
   d = Math.max(10, Math.floor(d));
   if (def.aegisField && d <= def.aegisField) d = 0;   // v6：神盾重力場
   if (def.spirit.unyield && d > 10) d = 10;           // v6：不屈
+  if (att.team === 'player' && def.team !== 'player' && CHEAT.on('oneshot')) d = Math.max(d, def.hp);   // v13：金手指（劇情不死的敵人仍由 strike 的 interceptDeath 保住）
+  if (def.team === 'player' && CHEAT.on('godmode')) d = 0;                                             // v13：金手指
   return d;
 }
 function bestWeapon(u, target, d) {
@@ -459,7 +463,8 @@ function useSpirit(u, id) {
   const S = SPIRITS[id];
   if (u.sp < S.cost || u.spirit[id]) return;
   if (S.needMorale && u.morale < S.needMorale) return;
-  u.sp -= S.cost; u.spirit[id] = true;
+  if (!(u.team === 'player' && CHEAT.on('infsp'))) u.sp -= S.cost;   // v13：金手指
+  u.spirit[id] = true;
   if (SPIRIT_SND[id]) SND.se('ui/' + SPIRIT_SND[id]);   // v12
   log(`✨ ${u.pilot}：精神指令【${S.name}】（${S.desc}）`, 'player');
   if (id === 'guts') { const h = Math.floor(u.maxHp * 0.3); u.hp = Math.min(u.maxHp, u.hp + h); u.spirit.guts = false; log(`💚 ${u.name} 恢復 ${h} HP`, 'player'); }
@@ -828,8 +833,9 @@ function askResponse(att, def, w) {
 
 // ==================== 戰鬥結算 ====================
 async function strike(att, def, w, opt = {}) {
-  if (w.en) att.en -= w.en;
-  if (w.left > 0) w.left -= 1;
+  const freeShot = att.team === 'player' && CHEAT.on('infammo');   // v13：金手指
+  if (w.en && !freeShot) att.en -= w.en;
+  if (w.left > 0 && !freeShot) w.left -= 1;
   const resp = opt.resp;
   const hitRate = calcHit(att, def, w, resp);
   const hit = Math.random() * 100 < hitRate;
@@ -899,6 +905,7 @@ async function flushQueue() { while (G.queue.length) { const fn = G.queue.shift(
 // 直接傷害（要塞重砲等地圖效果，不能反擊）
 async function directDamage(u, dmg, source) {
   if (u.hp <= 0) return;
+  if (u.team === 'player' && CHEAT.on('godmode')) dmg = 0;   // v13：金手指
   u.hp = Math.max(0, u.hp - dmg);
   log(`☄️ ${source} 擊中 ${u.name}，${dmg} 傷害`, 'enemy');
   if (u.hp <= 0) { log(`🔥 ${u.name} 被擊墜！`, 'enemy'); if (G.stage.hooks.onDefeat) await G.stage.hooks.onDefeat(G, u, null); }
@@ -1055,6 +1062,7 @@ async function playerPhaseStart() {
     if (u.team === 'player' && u.hp > 0) u.en = Math.min(u.maxEn, u.en + 5);
     // v6：精神點數每回合恢復上限的 10%（第 1 回合開場已滿，不用加）
     if (u.team === 'player' && u.hp > 0 && u.maxSp && G.turn > 1) u.sp = Math.min(u.maxSp, u.sp + Math.round(u.maxSp * LEVELING.spRegen));
+    if (u.team === 'player' && u.hp > 0 && CHEAT.on('maxmorale')) u.morale = 150;   // v13：金手指
   }
   updateHud(); render();
   SND.music(`MAP_${G.stage.id}`); SND.se('ui/UI10_player_phase');   // v12：我方回合音樂
@@ -1178,8 +1186,7 @@ async function onVictory() {
   }
   const next = G.stageIndex + 1;
   saveProgress(next);
-  if (next < STAGES.length) await startStage(next);
-  else showChapterEnd();
+  showInterlude(next);   // v13：先停在幕間，可以存檔再繼續
 }
 async function onDefeat() {
   G.ended = true; G.busy = true; G.telegraph = null; updateHud(); render();
@@ -1251,6 +1258,7 @@ async function startStage(index, retry = false) {
   else await talk([{ sys: '重新挑戰。' }]);
   log(`★ 作戰開始：${S.id}「${S.title}」`, 'system'); SND.se('ui/UI12_mission_start');   // v12
   log(`勝利條件：${S.win}`, 'player'); log(`敗北條件：${S.lose}`, 'enemy');
+  if (CHEAT.active().length) log(`🎮 金手指生效中：${CHEAT.active().map((c) => c.name).join('、')}`, 'system');   // v13
   G.busy = false;
   await playerPhaseStart();
   const first = alive((u) => u.team === 'player' && u.kind === 'unit')[0]; if (first) { showUnit(first); centerOn(first.x, first.y, false, true); }
@@ -1259,10 +1267,14 @@ async function startStage(index, retry = false) {
 // ==================== 標題畫面與章節結尾 ====================
 function showTitle() {
   G.stage = null; G.ended = true; SND.music('BGM_TITLE');   // v12
-  $('title').style.display = 'flex'; $('chapterEnd').style.display = 'none';
+  preloadToken++;   // v13：回標題就停掉關卡素材的背景下載，不然 MV 會排在幾百張圖後面載不出來
+  $('title').style.display = 'flex'; $('chapterEnd').style.display = 'none'; $('interlude').style.display = 'none';
   const save = loadProgress();
   $('btnContinue').style.display = save && save.next > 0 && save.next < STAGES.length ? 'block' : 'none';
   if (save && save.next < STAGES.length) $('btnContinue').textContent = `繼續（${STAGES[save.next].id}「${STAGES[save.next].title}」）`;
+  $('btnSave').disabled = !save;   // v13：還沒打完任何一節就沒有進度可存
+  $('btnLoad').disabled = ![1, 2, 3].some((n) => readSlot(n));
+  paintCheatOn();
   const sel = $('stageSelect'); sel.innerHTML = '';
   STAGES.forEach((s, i) => sel.insertAdjacentHTML('beforeend', `<option value="${i}">${s.id}「${s.title}」</option>`));
   $('chkAnim').checked = G.animOn; $('chkDebug').checked = G.debug;
@@ -1273,6 +1285,118 @@ $('btnContinue').onclick = () => { const s = loadProgress(); if (!s) return; G.f
 $('btnSelect').onclick = () => { const s = loadProgress(); G.flags = {}; G.roster = (s && s.roster) ? JSON.parse(JSON.stringify(s.roster)) : {}; startStage(+$('stageSelect').value); };
 $('chkAnim').onchange = (e) => { G.animOn = e.target.checked; saveSetting('srw_anim', G.animOn); };
 $('chkDebug').onchange = (e) => { G.debug = e.target.checked; saveSetting('srw_debug', G.debug); };
+
+// ==================== v13：存檔欄位（3 格）＋過關幕間 ====================
+// 「最近進度」（SAVE_KEY）照舊每過一節自動更新，給「繼續」用；3 個欄位是玩家自己選要不要存、存哪一格。
+const SLOT_KEY = (n) => `srw_dawn_slot_${n}`;
+function readSlot(n) { try { return JSON.parse(localStorage.getItem(SLOT_KEY(n)) || 'null'); } catch (e) { return null; } }
+function slotLabel(d) {
+  const where = d.next < STAGES.length ? `下一節：${STAGES[d.next].id}「${STAGES[d.next].title}」` : '第一大關全部完成';
+  const t = new Date(d.time || 0), pad = (x) => String(x).padStart(2, '0');
+  const when = d.time ? `${t.getFullYear()}/${pad(t.getMonth() + 1)}/${pad(t.getDate())} ${pad(t.getHours())}:${pad(t.getMinutes())}` : '';
+  const lv = Object.entries(d.roster || {}).filter(([pid]) => hasLevel(pid)).map(([pid, r]) => `${PILOTS[pid].short || PILOTS[pid].name} Lv${r.lv}`).join('、');
+  return { where, sub: [when, lv].filter(Boolean).join('・') };
+}
+let slotDone = null;   // 欄位畫面關掉後要做的事（從幕間打開的要回到幕間）
+function openSlots(mode, after) {
+  slotDone = after || null;
+  const cur = loadProgress();
+  $('slotTitle').textContent = mode === 'save' ? '存檔' : '讀取';
+  $('slotHint').textContent = mode === 'save' ? (cur ? `要把目前進度（${slotLabel(cur).where}）存到哪一格？` : '目前沒有進度可以存') : '要從哪一格接著玩？';
+  const box = $('slotList'); box.innerHTML = '';
+  for (const n of [1, 2, 3]) {
+    const d = readSlot(n), b = document.createElement('button');
+    b.className = 'slot';
+    if (d) { const L = slotLabel(d); b.innerHTML = `<b>欄位 ${n}</b>${L.where}<small>${L.sub}</small>`; }
+    else b.innerHTML = `<b>欄位 ${n}</b>（空）`;
+    b.disabled = mode === 'load' ? !d : !cur;
+    b.onclick = () => {
+      if (mode === 'save') {
+        if (d && !confirm(`欄位 ${n} 已經有存檔，要覆蓋嗎？`)) return;
+        try { localStorage.setItem(SLOT_KEY(n), JSON.stringify(Object.assign({}, cur, { time: Date.now() }))); } catch (e) { alert('存檔失敗（瀏覽器不允許儲存，例如無痕視窗）'); return; }
+        SND.se('ui/UI02_confirm'); openSlots('save', slotDone); $('slotHint').textContent = `已存到欄位 ${n}。`;
+      } else {
+        $('slotModal').style.display = 'none';
+        G.flags = d.flags || {}; G.roster = d.roster || {};
+        try { localStorage.setItem(SAVE_KEY, JSON.stringify({ next: d.next, flags: G.flags, roster: G.roster })); } catch (e) { /* 忽略 */ }
+        if (d.next < STAGES.length) startStage(d.next);
+        else { $('title').style.display = 'none'; showChapterEnd(); }
+      }
+    };
+    box.appendChild(b);
+  }
+  $('slotModal').style.display = 'flex';
+}
+$('slotClose').onclick = () => { $('slotModal').style.display = 'none'; SND.se('ui/UI03_cancel'); if (slotDone) slotDone(); else showTitle(); };
+$('btnLoad').onclick = () => openSlots('load');
+$('btnSave').onclick = () => openSlots('save');
+
+let interNext = 0;
+function showInterlude(next) {
+  interNext = next;
+  $('ilText').textContent = next < STAGES.length ? `接下來：${STAGES[next].id}「${STAGES[next].title}」。要先存檔嗎？` : '第一大關全部完成！要先存檔嗎？';
+  $('ilNext').textContent = next < STAGES.length ? '繼續下一節' : '看結尾';
+  $('interlude').style.display = 'flex';
+}
+$('ilNext').onclick = () => { $('interlude').style.display = 'none'; if (interNext < STAGES.length) startStage(interNext); else showChapterEnd(); };
+$('ilSave').onclick = () => { $('interlude').style.display = 'none'; openSlots('save', () => { $('interlude').style.display = 'flex'; }); };
+$('ilTitle').onclick = () => showTitle();
+
+// ==================== v13：金手指密碼（指令清單在 js/cheats.js） ====================
+function paintCheatOn() {
+  const a = CHEAT.active();
+  $('cheatOn').textContent = a.length ? `🎮 金手指：${a.map((c) => c.name).join('、')}` : '';
+  $('cheatList').innerHTML = a.length ? '目前開啟：<br>' + a.map((c) => `・${c.name}（${c.desc}）`).join('<br>') : '';
+}
+function openCheat() {
+  $('cheatInput').value = ''; $('cheatMsg').textContent = '同一個密碼再打一次就關閉；輸入 OFF 全部關閉。'; $('cheatMsg').className = 'cheat-msg';
+  paintCheatOn(); $('cheatModal').style.display = 'flex'; $('cheatInput').focus(); setTimeout(() => $('cheatInput').focus(), 50);
+}
+function submitCheat() {
+  const r = CHEAT.enter($('cheatInput').value);
+  $('cheatMsg').textContent = r.msg; $('cheatMsg').className = 'cheat-msg ' + (r.ok ? 'ok' : 'ng');
+  SND.se(r.ok ? 'ui/UI02_confirm' : 'ui/UI04_buzzer');
+  if (r.ok) $('cheatInput').value = '';
+  paintCheatOn();
+}
+$('btnCheat').onclick = openCheat;
+$('cheatOk').onclick = submitCheat;
+$('cheatInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitCheat(); } });
+$('cheatClose').onclick = () => { $('cheatModal').style.display = 'none'; };
+
+// ==================== v13：開場 MV ====================
+// 開發者 10-27：只有第一次播；之後標題選單「觀看 MV」可重看。
+// 瀏覽器規定「有聲音的影片要使用者先點一下才能播」→ 第一次先顯示「點一下畫面開始」。
+const MV_SEEN = 'srw_mv_seen';
+function playMV(needTap) {
+  return new Promise((resolve) => {
+    const L = $('mvLayer'), v = $('mvVideo'), st = $('mvStart');
+    let done = false;
+    const onKey = (e) => {
+      if (!['Escape', 'Enter', ' '].includes(e.key)) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      if (st.style.display !== 'none') start(); else finish();
+    };
+    const finish = () => {
+      if (done) return; done = true;
+      v.pause(); v.removeAttribute('src'); v.load();
+      L.style.display = 'none'; window.removeEventListener('keydown', onKey, true); resolve();
+    };
+    const start = () => {
+      st.style.display = 'none'; SND.stopMusic();
+      try { localStorage.setItem(MV_SEEN, '1'); } catch (e) { /* 忽略 */ }
+      v.src = 'assets/mv/opening_mv.mp4'; v.muted = SND.muted; v.play().catch(() => {});
+    };
+    v.onended = finish;
+    $('mvSkip').onclick = (e) => { e.stopPropagation(); finish(); };
+    st.onclick = start;
+    L.style.display = 'flex'; SND.stopMusic();
+    window.addEventListener('keydown', onKey, true);
+    if (needTap) st.style.display = 'flex'; else start();
+  });
+}
+$('btnWatchMV').onclick = () => { $('title').style.display = 'none'; playMV(false).then(showTitle); };
+
 function showChapterEnd() {
   $('chapterEnd').style.display = 'flex';
   $('ceFlags').textContent = G.debug ? '旗標：' + JSON.stringify(G.flags) : '';
@@ -1306,7 +1430,8 @@ window.addEventListener('keydown', (e) => {
 });
 window.onload = () => {
   G.animOn = loadSetting('srw_anim', true); G.debug = loadSetting('srw_debug', false);
-  showTitle();
+  let seen = false; try { seen = localStorage.getItem(MV_SEEN) === '1'; } catch (e) { /* 忽略 */ }
+  if (seen) showTitle(); else playMV(true).then(showTitle);   // v13：第一次進來先播開場 MV
 };
 
 // v12：素材快取（sw.js）。只有在網站上（http/https）才能用；直接開檔案時略過

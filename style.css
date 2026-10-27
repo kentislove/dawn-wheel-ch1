@@ -193,3 +193,30 @@ button { font: inherit; }
 #audioCtl { position: fixed; left: 10px; bottom: 10px; z-index: 9999; display: flex; gap: 6px; }
 #audioCtl button { background: rgba(15, 23, 42, .85); color: var(--text); border: 1px solid #2b4fb8; border-radius: 8px; padding: 5px 10px; font: inherit; font-size: .85rem; cursor: pointer; }
 #audioCtl button:hover { border-color: var(--cyan); }
+
+/* v13：標題選單、存檔欄位、金手指、開場 MV */
+.title-menu .btn.big { margin-top: 8px; }
+.title-more { margin-top: 14px; text-align: left; color: var(--muted); font-size: .88rem; }
+.title-more summary { cursor: pointer; text-align: center; }
+.cheat-on { margin-top: 8px; font-size: .8rem; color: var(--gold); min-height: 1em; }
+#slotModal, #cheatModal { z-index: 80; }          /* 要蓋在標題畫面（z-index 70）上面 */
+#interlude { z-index: 60; }
+.slot-hint { color: var(--muted); font-size: .85rem; margin: 0 0 10px; }
+.slot-list { display: flex; flex-direction: column; gap: 8px; }
+.slot { text-align: left; background: var(--panel2); color: var(--text); border: 1px solid #2b4fb8; border-radius: 8px; padding: 10px 12px; cursor: pointer; font: inherit; }
+.slot:hover:not(:disabled) { border-color: var(--cyan); }
+.slot:disabled { opacity: .45; cursor: default; }
+.slot b { color: var(--cyan); margin-right: 8px; }
+.slot small { display: block; color: var(--muted); margin-top: 3px; }
+.cheat-input { width: 100%; box-sizing: border-box; background: var(--panel2); color: var(--text); border: 1px solid #2b4fb8; border-radius: 8px; padding: 10px; font: inherit; font-size: 1.1rem; text-align: center; letter-spacing: 2px; }
+.cheat-msg { color: var(--muted); font-size: .85rem; min-height: 1.4em; }
+.cheat-msg.ok { color: var(--green); } .cheat-msg.ng { color: var(--red); }
+.cheat-list { text-align: left; font-size: .85rem; color: var(--gold); line-height: 1.7; }
+.mv-layer { position: fixed; inset: 0; z-index: 9000; background: #000; display: flex; align-items: center; justify-content: center; }
+.mv-layer video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+.mv-start { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer;
+  background: radial-gradient(ellipse at center, #10245a 0%, #050b1c 70%); }
+.mv-start-title { font-size: 2.6rem; letter-spacing: 8px; color: #fff; text-shadow: 0 0 24px #38bdf8; font-weight: 900; }
+.mv-start-hint { margin-top: 18px; color: var(--muted); letter-spacing: 3px; animation: mvBlink 1.6s ease-in-out infinite; }
+@keyframes mvBlink { 50% { opacity: .35; } }
+.mv-skip { position: absolute; right: 16px; bottom: 16px; z-index: 3; background: rgba(15,29,61,.8); color: var(--text); border: 1px solid #334155; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-weight: 700; }
