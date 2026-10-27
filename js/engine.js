@@ -749,16 +749,17 @@ async function playAnim(att, def, w, dmg, opt = {}) {
   try {
     const t = terrainAt(def.x, def.y);
     let p;
+    // v4：戰鬥背景＝被攻擊機體所在地形 → 場景 → 該場景 10 張隨機抽 1 張（js/battle_bg.js）
+    // v16：敵機出招（含我方受擊／防禦／迴避）也用同一套背景，以前敵方演出還在用程式畫的佔位背景
+    await BattleBG.init();
+    const bg = BattleBG.pick(t, def, G.stage);
+    if (G.debug) log(`🎞️ 戰鬥背景：${t.name} → ${bg.name}${bg.url ? ' 第 ' + bg.index + ' 張' : '（沒有圖，用舊背景）'}`);
     if (att.team === 'player') {
       p = await getAnimPlayer();
-      // v4：戰鬥背景＝被攻擊機體所在地形 → 場景 → 該場景 10 張隨機抽 1 張（js/battle_bg.js）
-      await BattleBG.init();
-      const bg = BattleBG.pick(t, def, G.stage);
-      if (G.debug) log(`🎞️ 戰鬥背景：${t.name} → ${bg.name}${bg.url ? ' 第 ' + bg.index + ' 張' : '（沒有圖，用舊背景）'}`);
       await p.load({ move: w.anim, attacker: att.animUnit, target: def.eid || 'PLACEHOLDER', terrain: t.bg, bgUrl: bg.url, targetReact: react });
     } else {
       p = await getEnemyAnimPlayer();
-      await p.load({ move: w.anim, target: def.animUnit, reaction: react, terrain: t.bg });
+      await p.load({ move: w.anim, target: def.animUnit, reaction: react, terrain: t.bg, bgUrl: bg.url });
     }
     p.speed = animSpeed;
     if (opt.line) p.line = opt.line;

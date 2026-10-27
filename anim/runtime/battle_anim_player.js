@@ -819,7 +819,7 @@
       const HA = this.move.action && this.move.action.halo && this.haloImg ? this.move.action.halo : null;
       const drawH = () => { if (HA) this._moveHalo(HA, fi, lt, hx0, hy, k, false);
         if (S.finish === 'phoenix' && lt > last && this.cleanHold) {   // 2026-10-27 開發者選 A：鳳凰飛出後 0.1 秒淡入「圖片區擦掉鳳凰的乾淨出拳格」並停住（手完整、鳳凰整隻消失）
-          const CH = this.cleanHold, u = smooth(0, 0.1, lt - last);
+          const CH = this.cleanHold, u = 1;   // 2026-10-27 開發者：淡入時兩個雲雀疊在一起 → 改成直接切換（動作段改到拳頭打出去的第 40 格，跟乾淨格姿勢接得上）
           if (u < 1) { c.save(); c.globalAlpha = 1 - u; c.drawImage(H, hx0, hy, H.width * k, H.height * k); c.restore(); }
           c.save(); c.globalAlpha = u; c.drawImage(CH, hx0, hy, CH.width * k, CH.height * k); c.restore();
         } else if (S.finish === 'phoenix' && lt > last) {   // 還沒有乾淨格的招式：舊做法（拳頭前方淡掉）
@@ -863,9 +863,7 @@
               al = Math.min(smooth(0, 0.05, dl), 1 - smooth(T1 - 0.05, T1 + 0.1, dl));
             for (let i = 0; i < 26; i++) { const r = rng(3400 + i), a = (dl * 2.5 + r()) % 1, tx = x - w * 0.3 - 500 * a * r(), ty = y + (r() - 0.5) * h * 0.5 + 60 * a;   // 火焰拖尾
               this._glow(tx, ty, 14 + 16 * r(), i % 3 ? ORANGE : YELLOW, 0.8 * al * (1 - a)); }
-            c.save(); c.globalCompositeOperation = 'lighter';
-            for (let j = 3; j >= 1; j--) { c.globalAlpha = 0.18 * al * (4 - j) / 3; c.drawImage(f, x - w / 2 - j * 70, y - h / 2 + j * 6, w, h); }   // 殘影
-            c.restore(); c.save(); c.globalAlpha = al; c.drawImage(f, x - w / 2, y - h / 2, w, h); c.restore(); }
+            c.save(); c.globalAlpha = al; c.drawImage(f, x - w / 2, y - h / 2, w, h); c.restore(); }   // 2026-10-27 開發者：鳳凰殘影看起來像重疊影格 → 拿掉，只留火焰拖尾光點
           if (dl > 0.4) { const d2 = dl - 0.4; this._explosion(ex, ey, d2, 3.0, 3300, ORANGE); this._explosion(ex - 150, ey + 60, d2 - 0.08, 2.0, 3301, ORANGE); this._explosion(ex + 120, ey - 80, d2 - 0.15, 2.0, 3302, ORANGE);
             if (d2 < 0.5) { c.fillStyle = rgba([255, 230, 170], 0.9 * (1 - d2 / 0.5)); c.fillRect(0, 0, W, H); } }
         } else if (S.finish === 'phoenix') {   // 鳳凰飛撲：火鳥從雲雀飛向敵機 → 全屏爆炸

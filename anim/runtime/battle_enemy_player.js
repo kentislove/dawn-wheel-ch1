@@ -29,7 +29,7 @@
   class BattleEnemyPlayer extends global.BattleAnimPlayer {
     static async create(canvas, opt = {}) { const p = new BattleEnemyPlayer(canvas, opt); await p._loadCommon(); return p; }
 
-    async load({ move, target = 'AURORA', reaction = 'DAMAGE', terrain = 'PLAINS' }) {
+    async load({ move, target = 'AURORA', reaction = 'DAMAGE', terrain = 'PLAINS', bgUrl = null }) {   // 網頁 v16：bgUrl＝遊戲指定的整張戰鬥背景（和我方出招一樣）
       const b = this.base;
       this.move = await loadJSON(`${b}data/moves/${move}.json`);
       this.enemyId = this.move.attacker || move.split('_')[0];
@@ -39,7 +39,9 @@
       const want = { cutinStart: this.move.cutin_start.image, cutinEnd: this.move.cutin_end.image,
         bgFar: `assets/backgrounds/${terrain}_far.png`, bgNear: `assets/backgrounds/${terrain}_near.png` };
       if (this.enemy.stand) want.stand = this.enemy.stand;
+      if (bgUrl) { delete want.bgFar; delete want.bgNear; }
       await Promise.all(Object.entries(want).map(async ([k, v]) => { img[k] = await loadImg(b + v); }));
+      if (bgUrl) { img.bgFar = await loadImg(bgUrl); const blank = document.createElement('canvas'); blank.width = blank.height = 1; img.bgNear = blank; }
       this.img = img;
       const F = this.move.action.frames, pad = n => String(n).padStart(F.digits || 3, '0');
       this.seq = await Promise.all(Array.from({ length: F.count }, (_, i) => loadImg(`${b}${F.dir}/${F.prefix || 'frame_'}${pad(i + 1)}.png`)));
@@ -51,7 +53,7 @@
       // 每招專屬受擊／防禦特效（data/hit_on_player.json，2026-10-23 開發者逐招指定）
       if (!this.hitOnPlayer) { try { this.hitOnPlayer = await loadJSON(`${b}data/hit_on_player.json`); } catch (e) { this.hitOnPlayer = {}; } }
       const fx = ((this.hitOnPlayer[this.move.id || move] || {})[reaction]) || null;
-      await this.rp.load({ unit: target, kind: reaction, attack, terrain, fx, fxImg: this.enemy.stand });
+      await this.rp.load({ unit: target, kind: reaction, attack, terrain, fx, fxImg: this.enemy.stand, bgUrl });
       this.rpStart = Math.max(0, this.rp.T - 0.6);            // 命中點落在受擊段開始後 0.6 秒
       this.H0 = this.move.segments.hit[0];
       this.duration = this.H0 + (this.rp.duration - this.rpStart);

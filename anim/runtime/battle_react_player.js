@@ -33,14 +33,15 @@
   class BattleReactPlayer extends global.BattleAnimPlayer {
     static async create(canvas, opt = {}) { const p = new BattleReactPlayer(canvas, opt); await p._loadCommon(); return p; }
 
-    async load({ unit, kind, attack = 'beam', terrain = 'PLAINS' }) {
+    async load({ unit, kind, attack = 'beam', terrain = 'PLAINS', bgUrl = null }) {   // 網頁 v16：bgUrl
       const b = this.base;
       this.unit = this.chars.units[unit];
       const R = this.unit.react && this.unit.react[kind];
       if (!R) throw new Error(`${unit} 沒有反應動作 ${kind}`);
       this.R = R; this.kind = kind; this.attack = attack; this.terrain = terrain;
       this.move = { id: `${unit}_REACT_${kind}` };          // 給錄影檔名用
-      this.img = { bgFar: await loadImg(`${b}assets/backgrounds/${terrain}_far.png`), bgNear: await loadImg(`${b}assets/backgrounds/${terrain}_near.png`) };
+      if (bgUrl) { const blank = document.createElement('canvas'); blank.width = blank.height = 1; this.img = { bgFar: await loadImg(bgUrl), bgNear: blank }; }   // 網頁 v16：用新的戰鬥背景
+      else this.img = { bgFar: await loadImg(`${b}assets/backgrounds/${terrain}_far.png`), bgNear: await loadImg(`${b}assets/backgrounds/${terrain}_near.png`) };
       const pad = n => String(n).padStart(R.digits || 3, '0');
       this.seq = await Promise.all(Array.from({ length: R.count }, (_, i) => loadImg(`${b}${R.dir}/${R.prefix || 'frame_'}${pad(i + 1)}.png`)));
       this.fps = R.fps || 24;
