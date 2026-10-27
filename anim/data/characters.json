@@ -1,0 +1,529 @@
+{
+ "_說明": "機體與駕駛員資料。portrait 為 null 時播放器顯示頭像佔位幅；補上圖片路徑即自動替換。",
+ "pilots": {
+  "LEONA": {
+   "name": "蕾歐娜・艾爾文",
+   "name_en": "Leona Elvin",
+   "gender": "女",
+   "type": "真實系",
+   "portrait": "assets/portraits/LEONA_determined.png",
+   "_備註": "暫定名（開發者指示真實系改女性）；原劇情綱要為「雷歐・艾爾文」。方舟三號殖民衛星的民間測試員，為了結束戰爭而戰。"
+  },
+  "KAI": {
+   "name": "神城 甲斐",
+   "name_en": "Kai Kamishiro",
+   "gender": "男",
+   "type": "超級系",
+   "portrait": "assets/portraits/KAI_determined.png",
+   "_備註": "目睹父親倒下後，把生命熱血注入轟天巨神。與蕾歐娜是並肩作戰的同伴（無曖昧）。"
+  },
+  "GO": {
+   "name": "神城 剛",
+   "name_en": "Go Kamishiro",
+   "gender": "男",
+   "type": "超級系",
+   "portrait": "assets/portraits/GO.png",
+   "_備註": "甲斐的哥哥；第五大關入隊後駕駛神盾泰坦我方版"
+  },
+  "MARGARET": {
+   "name": "瑪格麗特・霍爾",
+   "name_en": "Margaret Hall",
+   "gender": "女",
+   "type": "艦長",
+   "portrait": "assets/portraits/MARGARET.png",
+   "_備註": "昭明號艦長（52 歲，慈愛威嚴）"
+  },
+  "NOAH": {
+   "name": "諾亞",
+   "gender": "男",
+   "type": "格鬥系",
+   "portrait": "assets/portraits/NOAH.png",
+   "_備註": "蕾歐娜的弟弟；轉入我方後駕駛雲雀（第二部主角）"
+  }
+ },
+ "units": {
+  "AURORA": {
+   "name": "極光鋼機",
+   "pilot": "LEONA",
+   "stand": "assets/units/AURORA_stand.png",
+   "stand_scale": 0.86,
+   "stand_eye": [
+    220,
+    92
+   ],
+   "stand_thruster": [
+    110,
+    230
+   ],
+   "react": {
+    "_說明": "反應動作（敵方攻擊我方時）：灰底 H3 去背的透明 PNG 序列。impact＝命中那一格；point＝命中點（影片座標 1376×768）；ghost＝迴避殘影的格號範圍。",
+    "DEFEND": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.78,
+     "origin": [
+      -95,
+      35
+     ],
+     "dir": "assets/units/AURORA_react/DEFEND",
+     "count": 44,
+     "impact": 20,
+     "point": [
+      1000,
+      300
+     ]
+    },
+    "EVADE": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.78,
+     "origin": [
+      -95,
+      35
+     ],
+     "dir": "assets/units/AURORA_react/EVADE",
+     "count": 42,
+     "impact": 18,
+     "point": [
+      760,
+      560
+     ],
+     "ghost": [
+      17,
+      24
+     ]
+    },
+    "DAMAGE": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.78,
+     "origin": [
+      -95,
+      35
+     ],
+     "dir": "assets/units/AURORA_react/DAMAGE",
+     "count": 58,
+     "impact": 23,
+     "point": [
+      720,
+      290
+     ]
+    }
+   },
+   "field_color": [
+    56,
+    210,
+    255
+   ],
+   "field_sprite": "assets/vfx/S_field_aurora/frame_001.png",
+   "evade_trail": "assets/vfx/S_ev_aurora/frame_001.png"
+  },
+  "TITAN-X": {
+   "name": "轟天巨神",
+   "pilot": "KAI",
+   "stand": "assets/units/TITAN_stand.png",
+   "stand_scale": 0.86,
+   "stand_eye": [
+    212,
+    79
+   ],
+   "stand_thruster": [
+    100,
+    95
+   ],
+   "stand_eye_color": [
+    255,
+    210,
+    60
+   ],
+   "stand_thruster_color": [
+    255,
+    120,
+    40
+   ],
+   "_立繪備註": "2026-10-20 Gemini 灰底生圖（提示詞 v1.1）→ 程式去背、壓暗、偏冷色、加輪廓光。原圖與未調光版在 格鬥動畫關鍵幀庫/轟天巨神_首尾幀/登場立繪與反應動作/",
+   "react": {
+    "_說明": "反應動作（敵方攻擊轟天巨神時）：灰底 H3 去背透明序列。受擊 H3 第 18～30 格長出紅色光束，已剪掉（1～17＋31～66）。",
+    "DEFEND": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/TITAN_react/DEFEND",
+     "count": 47,
+     "impact": 20,
+     "point": [
+      930,
+      300
+     ]
+    },
+    "EVADE": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/TITAN_react/EVADE",
+     "count": 46,
+     "impact": 14,
+     "point": [
+      600,
+      600
+     ],
+     "ghost": [
+      12,
+      20
+     ]
+    },
+    "DAMAGE": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/TITAN_react/DAMAGE",
+     "count": 53,
+     "impact": 18,
+     "point": [
+      560,
+      260
+     ]
+    }
+   },
+   "field_color": [
+    255,
+    200,
+    60
+   ],
+   "field_sprite": "assets/vfx/S_field_titan/frame_001.png",
+   "evade_trail": "assets/vfx/S_ev_titan/frame_001.png"
+  },
+  "AEGIS-ALLY": {
+   "name": "神盾泰坦（我方）",
+   "pilot": "GO",
+   "stand": "assets/units/AEGIS_stand.png",
+   "stand_scale": 0.9,
+   "stand_eye": [
+    295.90000000000003,
+    100.8
+   ],
+   "stand_thruster": [
+    161.4,
+    308.0
+   ],
+   "stand_eye_color": [
+    255,
+    150,
+    40
+   ],
+   "stand_thruster_color": [
+    255,
+    120,
+    40
+   ],
+   "field_color": [
+    20,
+    20,
+    24
+   ],
+   "_說明": "2026-10-22 神盾泰坦我方版（朝右另生，不鏡射）。A.T. 力場黑色（開發者指定）。",
+   "react": {
+    "DEFEND": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/AEGIS_react/DEFEND",
+     "count": 54,
+     "impact": 20,
+     "point": [
+      900,
+      280
+     ]
+    },
+    "EVADE": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/AEGIS_react/EVADE",
+     "count": 54,
+     "impact": 14,
+     "point": [
+      600,
+      600
+     ],
+     "ghost": [
+      12,
+      20
+     ]
+    },
+    "DAMAGE": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/AEGIS_react/DAMAGE",
+     "count": 46,
+     "impact": 18,
+     "point": [
+      700,
+      280
+     ]
+    }
+   },
+   "field_sprite": "assets/vfx/S_field_go/frame_001.png",
+   "evade_trail": "assets/vfx/S_ev_go/frame_001.png"
+  },
+  "SHOMEI": {
+   "name": "昭明號",
+   "pilot": "MARGARET",
+   "stand": "assets/units/SHOMEI_stand.png",
+   "stand_scale": 1.15,
+   "stand_eye": [
+    270.0,
+    76.80000000000001
+   ],
+   "stand_thruster": [
+    36.0,
+    134.39999999999998
+   ],
+   "stand_eye_color": [
+    120,
+    230,
+    210
+   ],
+   "stand_thruster_color": [
+    90,
+    220,
+    255
+   ],
+   "no_field": true,
+   "damage_mult": 0.2,
+   "hp_fixed": 9999,
+   "_說明": "2026-10-23 我方母艦。開發者：不用 A.T. 力場，防禦＝艦體硬扛（爆炸冒煙不沉）；受到傷害 ×0.2、HP 固定 9999（遊戲數值，播放器只記錄）。招式依地形：高空 SHOMEI_0n／太空 SHOMEI_S0n（terrain_variants）。",
+   "react": {
+    "DEFEND": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/SHOMEI_react/DEFEND",
+     "count": 39,
+     "impact": 10,
+     "point": [
+      1000,
+      430
+     ],
+     "_": "DEFEND_v2：第 1～18 格＋第 49～107 格（剪掉 H3 自己加的護罩），接縫在命中瞬間"
+    },
+    "EVADE": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/SHOMEI_react/EVADE",
+     "count": 54,
+     "impact": 30,
+     "point": [
+      900,
+      560
+     ],
+     "ghost": [
+      8,
+      30
+     ]
+    },
+    "DAMAGE": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/SHOMEI_react/DAMAGE",
+     "count": 54,
+     "impact": 6,
+     "point": [
+      700,
+      400
+     ]
+    }
+   }
+  },
+  "HIBARI": {
+   "name": "雲雀",
+   "pilot": "NOAH",
+   "stand": "assets/units/HIBARI_stand.png",
+   "stand_scale": 0.9,
+   "stand_eye": [
+    248.60000000000002,
+    67.2
+   ],
+   "stand_thruster": [
+    135.6,
+    504.0
+   ],
+   "stand_eye_color": [
+    255,
+    210,
+    80
+   ],
+   "stand_thruster_color": [
+    255,
+    140,
+    40
+   ],
+   "field_color": [
+    255,
+    140,
+    30
+   ],
+   "_說明": "2026-10-23 雲雀（諾亞，我方，面朝右）。A.T. 力場橘色。MEIKYO_A＝H3 直接畫光環；MEIKYO_B＝H3 只變金，光環／光羽／水紋由播放器程式旋轉（內環順、外環逆、光羽順）。開發者要兩案都做。 2026-10-23 開發者選 B 案（A 案羽毛不旋轉，放棄）→ react.MEIKYO＝B 案。",
+   "react": {
+    "DEFEND": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/HIBARI_react/DEFEND",
+     "count": 42,
+     "impact": 14,
+     "point": [
+      820,
+      300
+     ]
+    },
+    "EVADE": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/HIBARI_react/EVADE",
+     "count": 54,
+     "impact": 18,
+     "point": [
+      700,
+      330
+     ],
+     "ghost": [
+      12,
+      30
+     ]
+    },
+    "DAMAGE": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/HIBARI_react/DAMAGE",
+     "count": 24,
+     "impact": 3,
+     "point": [
+      760,
+      300
+     ]
+    },
+    "MEIKYO": {
+     "prefix": "frame_",
+     "digits": 3,
+     "fps": 24,
+     "frame_scale": 0.8,
+     "origin": [
+      33,
+      34
+     ],
+     "dir": "assets/units/HIBARI_react/MEIKYO_B",
+     "count": 54,
+     "impact": 27,
+     "point": [
+      680,
+      300
+     ],
+     "halo": {
+      "dir": "assets/units/HIBARI_halo",
+      "center": [
+       680,
+       300
+      ],
+      "ripple_center": [
+       681,
+       689
+      ],
+      "alpha": 0.6,
+      "speed": [
+       0.45,
+       0.6,
+       0.35
+      ],
+      "appear": 1.15
+     }
+    }
+   },
+   "field_sprite": "assets/vfx/S_field_hibari/frame_001.png",
+   "evade_trail": "assets/vfx/S_ev_hibari/frame_001.png"
+  }
+ },
+ "_AT力場": "防禦時的 A.T. 力場顏色（field_color）：AURORA 青、轟天巨神金；敵機一律深紫（enemies.json）；E10 真・因果滅世主不出力場，直接顯示「無效」（field_null）。2026-10-21 開發者指定。",
+ "_AT力場_我方預定": {
+  "AEGIS-ALLY（神盾泰坦我方版／剛）": [
+   20,
+   20,
+   24
+  ],
+  "諾亞我方機（雲雀／影蝠我方版）": [
+   255,
+   140,
+   30
+  ],
+  "_說明": "2026-10-22 開發者指定：神盾泰坦我方版＝黑色 A.T. 力場；諾亞變我方時＝橘色。機體接進播放器時寫入該機的 field_color。"
+ },
+ "_我方特效素材_2026-10-24": "field_sprite＝圖片區 A.T. 力場素材（中間透明版）；evade_trail＝閃避殘影光帶（光頭朝右）；我方 MISS 共用 assets/vfx/S_ally_miss。"
+}

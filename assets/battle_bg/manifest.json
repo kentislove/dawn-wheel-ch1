@@ -1,0 +1,42 @@
+{
+ "SKY": {
+  "count": 10,
+  "source": "01_天空"
+ },
+ "LAND": {
+  "count": 10,
+  "source": "02_陸地"
+ },
+ "DESERT": {
+  "count": 10,
+  "source": "03_沙漠"
+ },
+ "CITY": {
+  "count": 10,
+  "source": "04_都市"
+ },
+ "SHELTER": {
+  "count": 10,
+  "source": "05_避難所"
+ },
+ "GRASS": {
+  "count": 10,
+  "source": "06_草原"
+ },
+ "SEA": {
+  "count": 10,
+  "source": "07_海面"
+ },
+ "DEEPSEA": {
+  "count": 10,
+  "source": "08_深海_v2"
+ },
+ "SPACE": {
+  "count": 10,
+  "source": "09_太空_v2"
+ },
+ "DEEPSPACE": {
+  "count": 10,
+  "source": "10_深空_v2"
+ }
+}

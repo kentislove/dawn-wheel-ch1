@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>破曉因果之輪 第一大關</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <!-- 頂部資訊列 -->
+  <header class="topbar">
+    <div class="logo">破曉因果之輪</div>
+    <div class="stage-title" id="stageTitle"></div>
+    <div class="phase-badge" id="phaseIndicator">我方回合</div>
+    <div class="turn">第 <span id="turnNumber">0</span> 回合</div>
+    <div class="cond"><span class="win">勝利：<b id="winText"></b></span><span class="lose">敗北：<b id="loseText"></b></span></div>
+    <button class="btn small" id="btnAnim">戰鬥動畫：開</button>
+    <button class="btn end" id="btnEndTurn">回合結束</button>
+  </header>
+
+  <main class="main">
+    <div class="map-wrap" id="mapWrap">
+      <!-- v8：大地圖 → 可捲動的視窗（拖曳捲動、Ctrl＋滾輪或右上角按鈕縮放） -->
+      <div class="map-view" id="mapView">
+        <div class="map-stack" id="mapStack">
+          <canvas id="mapCanvas" width="784" height="560"></canvas>
+          <canvas id="fxCanvas" width="784" height="560"></canvas>
+        </div>
+      </div>
+      <div class="map-zoom">
+        <button class="btn small" id="btnZoomOut" title="縮小">－</button>
+        <button class="btn small" id="btnZoomIn" title="放大">＋</button>
+        <button class="btn small" id="btnCenter" title="鏡頭移到選取中的機體">⌖</button>
+      </div>
+      <!-- v8：地圖戰鬥的小型切入框（關掉戰鬥動畫、或沒有演出的招式時顯示） -->
+      <div class="mini-cutin" id="miniCutin" style="display:none">
+        <div class="mc-img"><img id="mcImg" alt=""></div>
+        <div class="mc-body"><div class="mc-name" id="mcName"></div><div class="mc-weapon" id="mcWeapon"></div><div class="mc-line" id="mcLine"></div></div>
+      </div>
+      <div class="terrain-info" id="terrainInfo">把游標移到格子上，可以看地形效果</div>
+      <!-- 行動選單 -->
+      <div class="action-menu" id="actionMenu" style="display:none">
+        <button class="menu-btn" id="btnAttack">⚔️ 攻擊</button>
+        <button class="menu-btn talk" id="btnTalk">💬 說服</button>
+        <button class="menu-btn spirit" id="btnSpirit">✨ 精神</button>
+        <button class="menu-btn" id="btnWait">🛡️ 待命</button>
+        <button class="menu-btn cancel" id="btnCancel">↩ 取消</button>
+      </div>
+    </div>
+
+    <aside class="side">
+      <div class="unit-card">
+        <div class="card-head">
+          <div class="unit-badge" id="unitBadge">－</div>
+          <div><h3 id="unitName">點選地圖上的機體</h3><div class="pilot" id="pilotName">駕駛員：－</div></div>
+        </div>
+        <!-- v9：等級與經驗值條（只有會升級的我方駕駛顯示） -->
+        <div class="exp-row" id="expRow" style="display:none"><span class="lv" id="lvText">Lv 1</span><div class="track exp"><div class="fill exp" id="expBar"></div></div><span id="expText">0/100</span></div>
+        <div class="bar-row"><span>HP</span><span id="hpText">－</span></div>
+        <div class="track"><div class="fill hp" id="hpBar"></div></div>
+        <div class="bar-row"><span>EN</span><span id="enText">－</span></div>
+        <div class="track"><div class="fill en" id="enBar"></div></div>
+        <div class="stats">
+          <div>氣力 <b id="moraleText">－</b></div><div>裝甲 <b id="armorText">－</b></div>
+          <div>運動性 <b id="mobilityText">－</b></div><div>移動力 <b id="moveText">－</b></div>
+        </div>
+        <div class="section">✨ 精神指令（SP <span id="spText">－</span>）</div>
+        <div class="spirits" id="spiritsGrid"></div>
+        <div class="section">⚔️ 武器</div>
+        <div class="weapons" id="weaponsList"></div>
+      </div>
+      <div class="log" id="combatLog"></div>
+      <div class="debug" id="debugFlags"></div>
+    </aside>
+  </main>
+</div>
+
+<!-- 對話框 -->
+<div class="dialogue" id="dialogue" style="display:none">
+  <div class="dlg-box line" id="dlgBox">
+    <div class="dlg-portrait" id="dlgPortrait"></div>
+    <div class="dlg-body"><div class="dlg-name" id="dlgName"></div><div class="dlg-text" id="dlgText"></div></div>
+    <div class="dlg-hint">點一下／Enter 繼續</div>
+    <button class="dlg-skip" id="dlgSkip">跳過 ▶▶</button>
+  </div>
+</div>
+
+<!-- 大字橫幅 -->
+<div class="banner" id="banner" style="display:none"><div><div class="banner-text" id="bannerText"></div><div class="banner-sub" id="bannerSub"></div></div></div>
+
+<!-- 攻擊預覽 -->
+<div class="modal" id="preview" style="display:none">
+  <div class="modal-box">
+    <h2>戰鬥預覽</h2>
+    <div class="pv-grid">
+      <div class="pv-side me"><div class="tag">攻擊方</div><div id="pvAtt"></div><div class="pv-weapon" id="pvWeapon"></div>
+        <div>命中率 <b class="big" id="pvHit"></b></div><div>預估傷害 <b class="big" id="pvDmg"></b></div></div>
+      <div class="vs">VS</div>
+      <div class="pv-side them"><div class="tag">防禦方</div><div id="pvDef"></div><div>HP <b id="pvDefHp"></b></div><div class="pv-counter" id="pvCounter"></div></div>
+    </div>
+    <div class="modal-foot"><button class="btn go" id="pvGo">開始交戰</button><button class="btn" id="pvCancel">取消</button></div>
+  </div>
+</div>
+
+<!-- v8：精神指令選單（從行動選單的「✨ 精神」打開） -->
+<div class="modal" id="spiritModal" style="display:none">
+  <div class="modal-box">
+    <h2 id="smTitle">精神指令</h2>
+    <div class="sm-sp" id="smSp"></div>
+    <div class="sm-list" id="smList"></div>
+    <div class="modal-foot"><button class="btn" id="smClose">關閉</button></div>
+  </div>
+</div>
+
+<!-- 被攻擊時的應對 -->
+<div class="modal" id="response" style="display:none">
+  <div class="modal-box">
+    <h2 id="rsTitle"></h2>
+    <div class="rs-buttons" id="rsButtons"></div>
+  </div>
+</div>
+
+<!-- 簡易戰鬥框 -->
+<div class="quick-battle" id="quickBattle" style="display:none">
+  <div class="qb-inner">
+    <div class="qb-att" id="qbAtt"></div>
+    <div class="qb-weapon" id="qbWeapon"></div>
+    <div class="qb-arrow">▶▶▶</div>
+    <div class="qb-def" id="qbDef"></div>
+    <div class="qb-result" id="qbResult"></div>
+  </div>
+</div>
+
+<!-- 招式演出 -->
+<div class="anim-overlay" id="animOverlay" style="display:none">
+  <div class="anim-stage">
+    <canvas id="animCanvas" width="1280" height="720"></canvas>
+    <div class="anim-loading" id="animLoading">載入演出中……</div>
+    <div class="anim-damage" id="animDamage"></div>
+    <button class="anim-speed" id="animSpeed" title="切換播放速度（會記住）">▶ 1倍速</button>
+    <button class="anim-skip" id="animSkip">跳過 ▶▶</button>
+  </div>
+</div>
+
+<!-- 作戰失敗 -->
+<div class="modal" id="gameOver" style="display:none">
+  <div class="modal-box center"><h2>作戰失敗</h2><p>要從這一節的開頭重新挑戰嗎？</p>
+    <div class="modal-foot"><button class="btn go" id="btnRetry">重新挑戰</button><button class="btn" id="btnToTitle">回標題</button></div></div>
+</div>
+
+<!-- 標題畫面 -->
+<div class="title" id="title" style="display:none">
+  <div class="title-box">
+    <div class="title-sub">超級機器人大戰 原創企劃</div>
+    <h1>破曉因果之輪</h1>
+    <div class="title-chapter">第一大關【殖民衛星外環防衛線】</div>
+    <button class="btn big" id="btnNew">從 1-1 開始</button>
+    <button class="btn big" id="btnContinue" style="display:none">繼續</button>
+    <div class="title-row"><select id="stageSelect"></select><button class="btn" id="btnSelect">從這一節開始</button></div>
+    <label class="chk"><input type="checkbox" id="chkAnim"> 戰鬥動畫（我方招式、敵方招式、反擊都播）</label>
+    <label class="chk"><input type="checkbox" id="chkDebug"> 開發者模式（顯示隱藏旗標）</label>
+    <div class="title-note">操作：左鍵選取、移動、選指令；右鍵或 Esc 取消。對話中點一下或按 Enter 繼續。</div>
+  </div>
+</div>
+
+<!-- 章節結尾 -->
+<div class="title" id="chapterEnd" style="display:none">
+  <div class="title-box">
+    <h1>第一大關 完</h1>
+    <p>接下來：第二大關【重力圈突入與熱砂荒野】（製作中）</p>
+    <div class="debug" id="ceFlags"></div>
+    <button class="btn big" id="btnCeTitle">回標題</button>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/battle_bg.js"></script>
+<script src="anim/runtime/battle_anim_player.js"></script>
+<script src="anim/runtime/battle_react_player.js"></script>
+<script src="anim/runtime/battle_hitfx.js"></script>
+<script src="anim/runtime/battle_enemy_player.js"></script>
+<script src="js/stages.js"></script>
+<script src="js/engine.js"></script>
+</body>
+</html>

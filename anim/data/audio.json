@@ -1,0 +1,77 @@
+{
+  "_說明": "音效/音樂掛點。file 先留 null，日後補上檔案路徑即可；播放器會在時間點發出 audio 事件並帶出 file。",
+  "cues": {
+    "bgm_battle": {
+      "file": null,
+      "desc": "戰鬥 BGM（招式開始時接續）"
+    },
+    "se_boost": {
+      "file": null,
+      "desc": "推進器點火"
+    },
+    "se_dash": {
+      "file": null,
+      "desc": "高速衝刺風切"
+    },
+    "se_eye_flash": {
+      "file": null,
+      "desc": "眼部感應器閃光"
+    },
+    "se_cutin": {
+      "file": null,
+      "desc": "切入畫面音效"
+    },
+    "se_saber_ignite": {
+      "file": null,
+      "desc": "光束軍刀出鞘"
+    },
+    "se_saber_swing": {
+      "file": null,
+      "desc": "光束軍刀揮斬"
+    },
+    "se_slash_hit": {
+      "file": null,
+      "desc": "斬擊命中"
+    },
+    "se_explosion_s": {
+      "file": null,
+      "desc": "小爆炸"
+    },
+    "se_explosion_l": {
+      "file": null,
+      "desc": "大爆炸"
+    },
+    "se_finale": {
+      "file": null,
+      "desc": "終結大爆炸"
+    },
+    "voice_line": {
+      "file": null,
+      "desc": "駕駛員語音（台詞）"
+    },
+    "se_sheathe": {
+      "file": null,
+      "desc": "納刀「喀」聲（居合收刀）"
+    },
+    "se_enemy_beam": {
+      "file": null,
+      "desc": "敵方光束發射"
+    },
+    "se_enemy_shot": {
+      "file": null,
+      "desc": "敵方實彈連射"
+    },
+    "se_guard": {
+      "file": null,
+      "desc": "防禦擋下（護盾受擊）"
+    },
+    "se_evade": {
+      "file": null,
+      "desc": "迴避爆衝"
+    },
+    "se_hit_heavy": {
+      "file": null,
+      "desc": "我方被重擊"
+    }
+  }
+}

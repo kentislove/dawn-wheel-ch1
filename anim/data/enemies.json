@@ -1,0 +1,626 @@
+{
+ "_說明": "敵機登錄表。sprite 為 null 時顯示佔位幅；之後補上敵機受擊立繪（或動畫）路徑即可替換。box＝受擊範圍（寬,高），爆炸落點依此換算，所以換成任何體型的敵機都能對位。",
+ "units": {
+  "PLACEHOLDER": {
+   "name": "敵機佔位",
+   "sprite": null,
+   "box": [
+    320,
+    440
+   ]
+  },
+  "E01": {
+   "name": "黑曜突擊兵",
+   "name_en": "Obsidian Grunt",
+   "kind": "量產雜兵（無人機）",
+   "chapter": 1,
+   "sprite": null,
+   "scale": 1.0,
+   "box": [
+    300,
+    420
+   ],
+   "hit_seq": {
+    "dir": "assets/enemies/E01/hit",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 70,
+    "fps": 24
+   },
+   "field_color": [
+    110,
+    30,
+    190
+   ],
+   "stand": "assets/enemies/E01/stand.png",
+   "stand_size": [
+    471,
+    620
+   ],
+   "react": {
+    "DEFEND": {
+     "dir": "assets/enemies/E01/react/DEFEND_紫光",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24,
+     "_": "紫光防禦（2026-10-22 開發者定案：整台機體充滿紫色光芒、閃爍）"
+    },
+    "EVADE": {
+     "dir": "assets/enemies/E01/react/EVADE",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    },
+    "DEFEND_舊版": {
+     "dir": "assets/enemies/E01/react/DEFEND",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    }
+   },
+   "moves": [
+    "E01_01",
+    "E01_02",
+    "E01_03"
+   ]
+  },
+  "E02": {
+   "name": "赤炎斬擊者",
+   "name_en": "Crimson Slasher",
+   "kind": "近戰菁英（無人機）",
+   "chapter": 1,
+   "sprite": null,
+   "scale": 1.0,
+   "box": [
+    300,
+    440
+   ],
+   "hit_seq": {
+    "dir": "assets/enemies/E02/hit",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 70,
+    "fps": 24
+   },
+   "field_color": [
+    110,
+    30,
+    190
+   ],
+   "stand": "assets/enemies/E02/stand.png",
+   "stand_size": [
+    412,
+    620
+   ],
+   "react": {
+    "DEFEND": {
+     "dir": "assets/enemies/E02/react/DEFEND_紫光",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24,
+     "_": "紫光防禦（2026-10-22 開發者定案：整台機體充滿紫色光芒、閃爍）"
+    },
+    "EVADE": {
+     "dir": "assets/enemies/E02/react/EVADE",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    },
+    "DEFEND_舊版": {
+     "dir": "assets/enemies/E02/react/DEFEND",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    }
+   },
+   "moves": [
+    "E02_01",
+    "E02_02",
+    "E02_03"
+   ]
+  },
+  "E03": {
+   "name": "鐵甲犀牛",
+   "name_en": "Iron Rhino",
+   "kind": "重裝砲擊機（無人機）",
+   "chapter": 2,
+   "sprite": null,
+   "scale": 1.0,
+   "box": [
+    460,
+    360
+   ],
+   "hit_seq": {
+    "dir": "assets/enemies/E03/hit_v3",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 55,
+    "fps": 24,
+    "_": "2026-10-22 新造型 H3 受擊；剪掉第 11～18 格（爆閃＋暗背景）"
+   },
+   "field_color": [
+    110,
+    30,
+    190
+   ],
+   "stand": "assets/enemies/E03/stand.png",
+   "stand_size": [
+    959,
+    620
+   ],
+   "react": {
+    "DEFEND": {
+     "dir": "assets/enemies/E03/react/DEFEND_紫光",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24,
+     "_": "紫光防禦（2026-10-22 開發者定案：整台機體充滿紫色光芒、閃爍）"
+    },
+    "EVADE": {
+     "dir": "assets/enemies/E03/react/EVADE",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    },
+    "DEFEND_舊版": {
+     "dir": "assets/enemies/E03/react/DEFEND",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    }
+   },
+   "moves": [
+    "E03_01",
+    "E03_02",
+    "E03_03"
+   ],
+   "hit_seq_old_舊站姿": {
+    "dir": "assets/enemies/E03/hit",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 70,
+    "fps": 24
+   },
+   "hit_seq_v2_暫代": {
+    "dir": "assets/enemies/E03/hit_v2",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 1,
+    "fps": 24,
+    "_": "暫代：新造型警戒圖一張（舊受擊序列造型不符）。之後有受擊尾幀就跑 H3 換成連續序列"
+   }
+  },
+  "E04": {
+   "name": "影蝠戰鬥機",
+   "name_en": "Shadow Bat",
+   "kind": "可變空戰機（無人機）",
+   "chapter": 2,
+   "sprite": null,
+   "scale": 1.0,
+   "box": [
+    480,
+    240
+   ],
+   "hit_seq": {
+    "dir": "assets/enemies/E04/hit_v3",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 47,
+    "fps": 24,
+    "_": "2026-10-22 新造型 H3 受擊；剪掉第 1～14 格（H3 幻覺光束＋水晶防禦造型）"
+   },
+   "field_color": [
+    110,
+    30,
+    190
+   ],
+   "stand": "assets/enemies/E04/stand.png",
+   "stand_size": [
+    1465,
+    620
+   ],
+   "react": {
+    "DEFEND": {
+     "dir": "assets/enemies/E04/react/DEFEND_紫光",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 44,
+     "fps": 24,
+     "_": "紫光防禦（2026-10-22 開發者定案：整台機體充滿紫色光芒、閃爍）；剪掉第 21～40 格的青色光束"
+    },
+    "EVADE": {
+     "dir": "assets/enemies/E04/react/EVADE",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    },
+    "DEFEND_舊版": {
+     "dir": "assets/enemies/E04/react/DEFEND",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 48,
+     "fps": 24
+    }
+   },
+   "moves": [
+    "E04_01",
+    "E04_02",
+    "E04_03"
+   ],
+   "hit_seq_old_舊站姿": {
+    "dir": "assets/enemies/E04/hit",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 70,
+    "fps": 24
+   },
+   "hit_seq_v2_暫代": {
+    "dir": "assets/enemies/E04/hit_v2",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 1,
+    "fps": 24,
+    "_": "暫代：新造型警戒圖一張（舊受擊序列造型不符）。之後有受擊尾幀就跑 H3 換成連續序列"
+   }
+  },
+  "E05": {
+   "name": "深淵魔甲",
+   "name_en": "Abyss Kraken",
+   "kind": "水陸兩棲機械獸",
+   "chapter": 3,
+   "sprite": null,
+   "scale": 1.0,
+   "box": [
+    380,
+    420
+   ],
+   "hit_seq": {
+    "dir": "assets/enemies/E05/hit_v3",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 48,
+    "fps": 24,
+    "_": "2026-10-22 新造型 H3 受擊；剪掉第 5～20 格（H3 幻覺光束）"
+   },
+   "field_color": [
+    110,
+    30,
+    190
+   ],
+   "stand": "assets/enemies/E05/stand.png",
+   "stand_size": [
+    610,
+    620
+   ],
+   "react": {
+    "DEFEND": {
+     "dir": "assets/enemies/E05/react/DEFEND_紫光",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24,
+     "_": "紫光防禦（2026-10-22 開發者定案：整台機體充滿紫色光芒、閃爍）"
+    },
+    "EVADE": {
+     "dir": "assets/enemies/E05/react/EVADE",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 46,
+     "fps": 24
+    },
+    "DEFEND_舊版": {
+     "dir": "assets/enemies/E05/react/DEFEND",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    }
+   },
+   "moves": [
+    "E05_01",
+    "E05_02",
+    "E05_03",
+    "E05_04"
+   ],
+   "hit_seq_old_舊站姿": {
+    "dir": "assets/enemies/E05/hit",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 70,
+    "fps": 24
+   },
+   "hit_seq_v2_暫代": {
+    "dir": "assets/enemies/E05/hit_v2",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 1,
+    "fps": 24,
+    "_": "暫代：新造型警戒圖一張（舊受擊序列造型不符）。之後有受擊尾幀就跑 H3 換成連續序列"
+   }
+  },
+  "E06": {
+   "name": "賽諾晶爪獵犬",
+   "name_en": "Xeno Stalker",
+   "kind": "生物機械異形（BOSS）",
+   "chapter": 3,
+   "sprite": null,
+   "scale": 1.0,
+   "box": [
+    460,
+    320
+   ],
+   "hit_seq": {
+    "dir": "assets/enemies/E06/hit_v3",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 51,
+    "fps": 24,
+    "_": "新造型 H3 受擊（E07 剪掉第 5～23 格的橘色光束）"
+   },
+   "field_color": [
+    110,
+    30,
+    190
+   ],
+   "stand": "assets/enemies/E06/stand.png",
+   "stand_size": [
+    833,
+    620
+   ],
+   "react": {
+    "DEFEND": {
+     "dir": "assets/enemies/E06/react/DEFEND_紫光",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24,
+     "_": "紫光防禦（2026-10-22 開發者定案：整台機體充滿紫色光芒、閃爍）"
+    },
+    "EVADE": {
+     "dir": "assets/enemies/E06/react/EVADE",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 48,
+     "fps": 24
+    },
+    "DEFEND_舊版": {
+     "dir": "assets/enemies/E06/react/DEFEND",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    }
+   },
+   "moves": [
+    "E06_01",
+    "E06_02",
+    "E06_03",
+    "E06_04",
+    "E06_05"
+   ],
+   "hit_seq_old_舊站姿": {
+    "dir": "assets/enemies/E06/hit",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 70,
+    "fps": 24
+   }
+  },
+  "E07": {
+   "name": "神盾泰坦",
+   "name_en": "Aegis Titan",
+   "kind": "要塞守護者（BOSS）",
+   "chapter": 4,
+   "sprite": null,
+   "scale": 1.0,
+   "box": [
+    420,
+    520
+   ],
+   "hit_seq": {
+    "dir": "assets/enemies/E07/hit_v4",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 54,
+    "fps": 24,
+    "_": "2026-10-23 E07 v2 受擊；剪掉第 12～22 格（H3 幻覺光束＋爆閃）"
+   },
+   "field_color": [
+    110,
+    30,
+    190
+   ],
+   "stand": "assets/enemies/E07/stand_v2.png",
+   "stand_size": [
+    488,
+    620
+   ],
+   "react": {
+    "DEFEND": {
+     "dir": "assets/enemies/E07/react/DEFEND",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    },
+    "EVADE": {
+     "dir": "assets/enemies/E07/react/EVADE",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    }
+   },
+   "moves": [
+    "E07_01",
+    "E07_02",
+    "E07_03",
+    "E07_04",
+    "E07_05",
+    "E07_06"
+   ],
+   "hit_seq_old_舊站姿": {
+    "dir": "assets/enemies/E07/hit",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 70,
+    "fps": 24
+   },
+   "react_舊版_右手盾": {
+    "DEFEND": {
+     "dir": "assets/enemies/E07/react/DEFEND_紫光",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24,
+     "_": "紫光防禦（2026-10-22 開發者定案：整台機體充滿紫色光芒、閃爍）"
+    },
+    "EVADE": {
+     "dir": "assets/enemies/E07/react/EVADE",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    },
+    "DEFEND_舊版": {
+     "dir": "assets/enemies/E07/react/DEFEND",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    }
+   },
+   "hit_seq_舊版_右手盾": {
+    "dir": "assets/enemies/E07/hit_v3",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 46,
+    "fps": 24,
+    "_": "新造型 H3 受擊（E07 剪掉第 5～23 格的橘色光束）"
+   }
+  },
+  "E08": {
+   "name": "白銀死神",
+   "name_en": "Silver Reaper",
+   "kind": "極地軌道騎士長專屬座機（BOSS）",
+   "chapter": 4,
+   "sprite": null,
+   "scale": 1.0,
+   "box": [
+    320,
+    460
+   ],
+   "hit_seq": {
+    "dir": "assets/enemies/E08/hit_v3",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 46,
+    "fps": 24,
+    "_": "新造型 H3 受擊（剪掉第 5～23 格的橫向光束）"
+   },
+   "field_color": [
+    110,
+    30,
+    190
+   ],
+   "stand": "assets/enemies/E08/stand.png",
+   "stand_size": [
+    922,
+    620
+   ],
+   "react": {
+    "DEFEND": {
+     "dir": "assets/enemies/E08/react/DEFEND_紫光",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24,
+     "_": "紫光防禦（2026-10-22 開發者定案：整台機體充滿紫色光芒、閃爍）"
+    },
+    "EVADE": {
+     "dir": "assets/enemies/E08/react/EVADE",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    },
+    "DEFEND_舊版": {
+     "dir": "assets/enemies/E08/react/DEFEND",
+     "prefix": "frame_",
+     "digits": 3,
+     "count": 54,
+     "fps": 24
+    }
+   },
+   "moves": [
+    "E08_01",
+    "E08_02",
+    "E08_03",
+    "E08_04",
+    "E08_05",
+    "E08_06",
+    "E08_07"
+   ]
+  },
+  "E09": {
+   "name": "虛數審判官",
+   "name_en": "Void Inquisitor",
+   "kind": "異次元四大使徒機神（BOSS）",
+   "chapter": 5,
+   "sprite": null,
+   "scale": 1.0,
+   "box": [
+    380,
+    480
+   ],
+   "hit_seq": {
+    "dir": "assets/enemies/E09/hit",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 70,
+    "fps": 24
+   },
+   "field_color": [
+    110,
+    30,
+    190
+   ]
+  },
+  "E10": {
+   "name": "真・因果滅世主",
+   "name_en": "Deus Causality",
+   "kind": "異界魔王（最終 BOSS）",
+   "chapter": 5,
+   "sprite": null,
+   "scale": 1.0,
+   "box": [
+    520,
+    560
+   ],
+   "hit_seq": {
+    "dir": "assets/enemies/E10/hit",
+    "prefix": "frame_",
+    "digits": 3,
+    "count": 70,
+    "fps": 24
+   },
+   "field_null": true,
+   "field_null_text": "無效"
+  }
+ },
+ "field_color_default": [
+  110,
+  30,
+  190
+ ]
+}
