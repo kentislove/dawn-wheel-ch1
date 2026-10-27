@@ -466,6 +466,22 @@ function showUnit(u) {
     wl.appendChild(d);
   }
 }
+// v18：精神指令發動特效（開發者 10-27「精神指令沒有特效」）→ 機戰式切入：駕駛員頭像＋大字指令名，地圖上機體頭頂飄字
+const SPIRIT_FACE = { LEONA: 'LEONA_determined', KAI: 'KAI_determined', NOAH: 'NOAH_casual_normal', GO: 'GO_determined' };
+const SPIRIT_COLOR = { hotblood: '#f97316', soul: '#ef4444', valor: '#f97316', spirit: '#fb923c', encourage: '#fb923c',
+  surehit: '#38bdf8', snipe: '#38bdf8', direct: '#38bdf8', focus: '#a78bfa', flash: '#a78bfa', accel: '#22d3ee', awaken: '#facc15', lucky: '#facc15',
+  ironwall: '#94a3b8', unyield: '#94a3b8', guts: '#4ade80', trust: '#4ade80', supply: '#4ade80', meikyo: '#fde047' };
+let spiritFxTimer = 0;
+function spiritFx(u, id) {
+  const S = SPIRITS[id], col = SPIRIT_COLOR[id] || '#38bdf8', box = $('spiritFx');
+  const face = SPIRIT_FACE[u.pilotId];
+  $('sfFace').style.display = face ? '' : 'none'; if (face) $('sfFace').src = `assets/portraits/${face}.webp`;
+  $('sfPilot').textContent = u.pilot; $('sfName').textContent = S.name; $('sfDesc').textContent = S.desc;
+  box.style.setProperty('--sf', col);
+  box.style.display = 'none'; void box.offsetWidth; box.style.display = 'flex';   // 連續發動時重播動畫
+  clearTimeout(spiritFxTimer); spiritFxTimer = setTimeout(() => { box.style.display = 'none'; }, 1400);
+  floatText(u, `【${S.name}】`, col);
+}
 function useSpirit(u, id) {
   const S = SPIRITS[id];
   if (u.sp < S.cost || u.spirit[id]) return;
@@ -473,15 +489,16 @@ function useSpirit(u, id) {
   if (!(u.team === 'player' && CHEAT.on('infsp'))) u.sp -= S.cost;   // v13：金手指
   u.spirit[id] = true;
   if (SPIRIT_SND[id]) SND.se('ui/' + SPIRIT_SND[id]);   // v12
+  spiritFx(u, id);   // v18
   log(`✨ ${u.pilot}：精神指令【${S.name}】（${S.desc}）`, 'player');
   if (id === 'guts') { const h = Math.floor(u.maxHp * 0.3); u.hp = Math.min(u.maxHp, u.hp + h); u.spirit.guts = false; log(`💚 ${u.name} 恢復 ${h} HP`, 'player'); }
   if (id === 'spirit') { u.morale = Math.min(150, u.morale + 10); u.spirit.spirit = false; }   // v6：氣合
   // v14：新精神（相鄰＝上下左右一格的我方機體）
   const near = () => alive((v) => v.team === 'player' && v.kind === 'unit' && v !== u && dist(v, u) === 1);
   if (id === 'valor') { u.morale = Math.min(150, u.morale + 30); u.spirit.valor = false; }
-  if (id === 'trust') { for (const v of near()) { const h = Math.floor(v.maxHp * 0.3); v.hp = Math.min(v.maxHp, v.hp + h); log(`💚 ${v.name} 恢復 ${h} HP`, 'player'); } u.spirit.trust = false; }
-  if (id === 'encourage') { for (const v of near()) { v.morale = Math.min(150, v.morale + 10); log(`🔥 ${v.name} 氣力 +10`, 'player'); } u.spirit.encourage = false; }
-  if (id === 'supply') { for (const v of near()) { v.en = v.maxEn; v.weapons.forEach((x) => { if (x.ammo > 0) x.left = x.ammo; }); log(`🔧 ${v.name} 彈藥、EN 全滿`, 'player'); } u.spirit.supply = false; }
+  if (id === 'trust') { for (const v of near()) { const h = Math.floor(v.maxHp * 0.3); v.hp = Math.min(v.maxHp, v.hp + h); log(`💚 ${v.name} 恢復 ${h} HP`, 'player'); floatText(v, `HP +${h}`, '#4ade80'); } u.spirit.trust = false; }
+  if (id === 'encourage') { for (const v of near()) { v.morale = Math.min(150, v.morale + 10); log(`🔥 ${v.name} 氣力 +10`, 'player'); floatText(v, '氣力 +10', '#fb923c'); } u.spirit.encourage = false; }
+  if (id === 'supply') { for (const v of near()) { v.en = v.maxEn; v.weapons.forEach((x) => { if (x.ammo > 0) x.left = x.ammo; }); log(`🔧 ${v.name} 彈藥、EN 全滿`, 'player'); floatText(v, '補給完成', '#4ade80'); } u.spirit.supply = false; }
   if (id === 'snipe' && G.sel === u && G.mode === 'attack' && G.weapon) G.atkRange = calcAttackRange(u, G.weapon);
   if (id === 'meikyo') { u.morale -= 50; u.formBeforeGolden = u.form; setForm(u, 'golden'); u.spirit.meikyo = false; }   // v6：明鏡止水
   if (id === 'accel' && G.sel === u && G.mode === 'move') G.moveRange = calcMoveRange(u);
