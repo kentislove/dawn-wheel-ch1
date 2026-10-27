@@ -19,7 +19,7 @@ import sys
 import threading
 import webbrowser
 
-PORT = 8742
+PORT = 8743
 HERE = os.path.dirname(os.path.abspath(__file__))
 mimetypes.add_type('image/webp', '.webp')   # 舊版 Python 在 Windows 上可能不認得 .webp
 

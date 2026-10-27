@@ -764,10 +764,15 @@ async function playAnim(att, def, w, dmg, opt = {}) {
     p.speed = animSpeed;
     if (opt.line) p.line = opt.line;
     $('animLoading').style.display = 'none';
-    const cues = battleCues(att, def, w, react, p); SND.setDuck(true); SND.se('ui/UI08_battle_transition', 0.6);   // v12
+    const cues = battleCues(att, def, w, react, p); SND.se('ui/UI08_battle_transition', 0.6);   // v12
+    const btl = battleTrack(att, def); clearTimeout(battleMusicTimer);   // v17：戰鬥音樂
+    if (btl) { if (!battleMusicBack) battleMusicBack = SND.wanted; SND.music(btl); SND.setDuck(true, 0.8); } else SND.setDuck(true);
     await new Promise((done) => {
       let finished = false;
-      const finish = () => { if (finished) return; finished = true; p.pause(); animHandler = null; $('animSkip').onclick = null; SND.stopBattle(); SND.setDuck(false); done(); };
+      const finish = () => { if (finished) return; finished = true; p.pause(); animHandler = null; $('animSkip').onclick = null; SND.stopBattle(); SND.setDuck(false);
+        // v17：0.6 秒內沒有下一場演出（例如反擊）就接回地圖音樂
+        if (battleMusicBack) battleMusicTimer = setTimeout(() => { if (battleMusicBack && /^BTL_/.test(SND.wanted || '')) SND.music(battleMusicBack); battleMusicBack = null; }, 600);   // 換回合已經換了音樂就不要蓋掉
+        done(); };
       const tick = () => { if (finished) return; while (cues.length && p.t >= cues[0][0]) { const c = cues.shift(); SND.se(c[1], c[2], true); } requestAnimationFrame(tick); };   // v12：照時間點放音效
       requestAnimationFrame(tick);
       animHandler = (ev) => {
@@ -791,6 +796,17 @@ async function playAnim(att, def, w, dmg, opt = {}) {
   return true;
 }
 
+// v17：戰鬥音樂（音樂區 10-27 做的駕駛員主題曲；開發者：進戰鬥畫面的音樂不能和地圖一樣）
+// 我方出招 → 出招駕駛員的曲子；敵方打我方 → 被打的我方駕駛員的曲子（機戰慣例）；影蝠（BOSS）有出場就是 BOSS 曲；其他 → 敵方曲
+const BTL_PILOT = { LEONA: 'BTL_LEONA', KAI: 'BTL_KAI' };
+function battleTrack(att, def) {
+  const boss = (u) => u.boss || u.type === 'E04';
+  let name = boss(att) || boss(def) ? 'BTL_BOSS_BAT'
+    : att.team === 'player' ? BTL_PILOT[att.pilotId] : def.team === 'player' ? BTL_PILOT[def.pilotId] : null;
+  name = name || 'BTL_ENEMY';
+  return SND.has(`bgm/${name}_A`) || SND.has(`bgm/${name}`) ? name : null;   // 沒有這首就照舊用地圖音樂
+}
+let battleMusicBack = null, battleMusicTimer = 0;   // 演出結束後要接回的地圖音樂；反擊緊接著播時不要切回去
 // v12：一招演出的音效時間表 [秒, 檔名, 音量]。音樂區的機體音效每招三段：start（出招前 1.0 秒）、main（動作 3.0 秒）、hit（命中 2.5 秒）
 const REACT_SND = { se_hit_heavy: 'damage', se_guard: 'guard', se_evade: 'evade' };
 function battleCues(att, def, w, react, p) {
