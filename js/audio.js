@@ -100,7 +100,10 @@ function sndMove(anim) {
 }
 // 精神指令 → 介面音效
 const SPIRIT_SND = { hotblood: 'UI15_spirit_hotblood', soul: 'UI15_spirit_hotblood', surehit: 'UI16_spirit_strike', flash: 'UI17_spirit_alert', focus: 'UI17_spirit_alert',
-  accel: 'UI18_spirit_accel', ironwall: 'UI19_spirit_ironwall', unyield: 'UI19_spirit_ironwall', guts: 'UI20_spirit_guts', spirit: 'UI20_spirit_guts' };
+  accel: 'UI18_spirit_accel', ironwall: 'UI19_spirit_ironwall', unyield: 'UI19_spirit_ironwall', guts: 'UI20_spirit_guts', spirit: 'UI20_spirit_guts',
+  // v14 新精神
+  snipe: 'UI16_spirit_strike', direct: 'UI16_spirit_strike', lucky: 'UI17_spirit_alert', trust: 'UI20_spirit_guts', supply: 'UI20_spirit_guts',
+  encourage: 'UI15_spirit_hotblood', valor: 'UI15_spirit_hotblood', awaken: 'UI18_spirit_accel' };
 
 // 左下角的音樂 A／B 與靜音按鈕（標題畫面、遊戲中都看得到）
 (() => {

@@ -220,3 +220,25 @@ button { font: inherit; }
 .mv-start-hint { margin-top: 18px; color: var(--muted); letter-spacing: 3px; animation: mvBlink 1.6s ease-in-out infinite; }
 @keyframes mvBlink { 50% { opacity: .35; } }
 .mv-skip { position: absolute; right: 16px; bottom: 16px; z-index: 3; background: rgba(15,29,61,.8); color: var(--text); border: 1px solid #334155; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-weight: 700; }
+
+/* v14：精神指令交易（遙） */
+#shopModal { z-index: 62; }
+.shop-box { width: min(720px, 100%); max-height: 92vh; display: flex; flex-direction: column; }
+.shop-head { display: flex; gap: 12px; align-items: center; }
+.shop-face { width: 72px; height: 72px; border-radius: 10px; border: 2px solid var(--line); flex: none; object-fit: cover; }
+.shop-head h2 { margin: 0 0 4px; }
+.shop-say { margin: 0; color: var(--text); font-size: .9rem; }
+.shop-wallet { margin-left: auto; text-align: right; color: var(--muted); font-size: .8rem; flex: none; }
+.shop-wallet b { display: block; color: var(--gold); font-size: 1.4rem; }
+.shop-tabs { display: flex; gap: 6px; margin: 12px 0 6px; flex-wrap: wrap; }
+.shop-tab { background: var(--panel2); color: var(--muted); border: 1px solid #2b4fb8; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-weight: 700; }
+.shop-tab.on { color: #fff; border-color: var(--cyan); box-shadow: 0 0 8px rgba(56,189,248,.4); }
+.shop-body { overflow-y: auto; padding-right: 4px; }
+.shop-body h3 { font-size: .9rem; color: var(--cyan); margin: 12px 0 6px; }
+.shop-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--panel2); border: 1px solid #1e3a8a; border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+.shop-row small { display: block; color: var(--muted); font-size: .78rem; margin-top: 2px; }
+.shop-row .btn { flex: none; min-width: 92px; }
+.shop-row .btn:disabled { opacity: .4; cursor: not-allowed; }
+.shop-own { display: flex; flex-wrap: wrap; gap: 6px; }
+.shop-own span { background: #10245a; border: 1px solid var(--cyan); border-radius: 8px; padding: 4px 10px; font-weight: 700; }
+.shop-own small { color: var(--muted); margin-left: 6px; font-weight: 400; }

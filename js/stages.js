@@ -16,6 +16,7 @@ async function batFinale(G, crash) {
   const leona = G.units.find((u) => u.uid === 'leona');
   if (!bat) return;
   G.vars.finaleQueued = true;
+  if (!crash) G.award(500, '擊落影蝠');   // v14：BOSS 經驗由劇情發（影蝠一定被劇情保住，引擎那邊發不出去）
   if (crash) await G.talk([
     { n: '（跳躍倒數歸零的前一刻，影蝠的推進器全開。機體已經失控，全速撞向昭明號——）' },
     ['諾亞', '停下來……停下來啊！昭明號，給我停下來！'],
@@ -321,7 +322,7 @@ const STAGES = [
           ['蕾歐娜', '很好，往後方的礦道撤退。'],
           { sys: '說服成功！民用機撤退了。' },
         ]);
-        G.remove('civil');
+        G.remove('civil'); G.award(100, '說服民用機');   // v14：說服才有經驗，打下來是 0
       } },
       { from: 'noah', to: 'civil', once: true, async run(G) {
         await G.talk([
@@ -330,7 +331,7 @@ const STAGES = [
           ['諾亞', '從右邊的礦道走，那邊安全！'],
           { sys: '說服成功！民用機撤退了。' },
         ]);
-        G.remove('civil');
+        G.remove('civil'); G.award(100, '說服民用機');   // v14：說服才有經驗，打下來是 0
       } },
     ],
     victory: (G) => G.vars.wave4 && G.enemiesLeft() === 0,
@@ -460,7 +461,7 @@ const STAGES = [
         if (G.once('batHit13')) G.later(() => G.talk(att && att.uid === 'leona'
           ? [['諾亞', '別勉強了，老姊！妳根本不想打我吧！'], ['蕾歐娜', '……我只是要把你從那台機體裡拉出來！']]
           : [['諾亞', '甲斐，別逼我！我不想跟你打！']]));
-        if (def.hp <= def.maxHp * 0.3 && !G.vars.batGone && G.once('batRetreat')) G.later(() => batRetreat13(G));
+        if (def.hp <= def.maxHp * 0.3 && !G.vars.batGone && G.once('batRetreat')) { G.award(200, '逼退影蝠'); G.later(() => batRetreat13(G)); }   // v14
       },
     },
     talks: [

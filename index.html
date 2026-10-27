@@ -166,7 +166,7 @@
     </div>
     <div class="cheat-on" id="cheatOn"></div>
     <details class="title-more"><summary>其他設定</summary>
-      <div class="title-row"><select id="stageSelect"></select><button class="btn" id="btnSelect">從這一節開始</button></div>
+      <div class="title-row" id="stageRow"><select id="stageSelect"></select><button class="btn" id="btnSelect">從這一節開始</button></div>
       <label class="chk"><input type="checkbox" id="chkAnim"> 戰鬥動畫（我方招式、敵方招式、反擊都播）</label>
       <label class="chk"><input type="checkbox" id="chkDebug"> 開發者模式（顯示隱藏旗標）</label>
     </details>
@@ -184,7 +184,21 @@
 <!-- v13：過關後的幕間（可以存檔再繼續） -->
 <div class="modal" id="interlude" style="display:none">
   <div class="modal-box center"><h2>作戰成功</h2><p id="ilText"></p>
-    <div class="modal-foot"><button class="btn go" id="ilNext">繼續下一節</button><button class="btn" id="ilSave">存檔</button><button class="btn" id="ilTitle">回標題</button></div></div>
+    <div class="modal-foot"><button class="btn go" id="ilNext">繼續下一節</button><button class="btn" id="ilShop">精神指令交易（遙）</button><button class="btn" id="ilSave">存檔</button><button class="btn" id="ilTitle">回標題</button></div></div>
+</div>
+
+<!-- v14：精神指令交易（昭明號通信士 遙 的窗口） -->
+<div class="modal" id="shopModal" style="display:none">
+  <div class="modal-box shop-box">
+    <div class="shop-head">
+      <img class="shop-face" src="assets/portraits/HARUKA_normal.webp" alt="">
+      <div><h2>精神指令交易</h2><p class="shop-say" id="shopSay"></p></div>
+      <div class="shop-wallet">全隊經驗<b id="shopWallet">0</b></div>
+    </div>
+    <div class="shop-tabs" id="shopTabs"></div>
+    <div class="shop-body" id="shopBody"></div>
+    <div class="modal-foot"><button class="btn" id="shopClose">返回</button></div>
+  </div>
 </div>
 
 <!-- v13：金手指密碼 -->
@@ -223,5 +237,6 @@
 <script src="anim/runtime/battle_enemy_player.js"></script>
 <script src="js/stages.js"></script>
 <script src="js/engine.js"></script>
+<script src="js/shop.js"></script>
 </body>
 </html>

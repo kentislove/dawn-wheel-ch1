@@ -75,15 +75,49 @@ const SPIRITS = {
   unyield:  { name: '不屈', cost: 15, desc: '下一次受到的傷害變成 10' },
   // 諾亞專用，劇情解鎖（G.flags.meikyo）：氣力 130 以上才能用，扣氣力 50，變成黃金雲雀（120%），可用 07、08；用完回原型態
   meikyo:   { name: '明鏡止水', cost: 0, needMorale: 130, desc: '氣力 -50，變成黃金雲雀，可以使用朱雀神掌、朱雀天驚拳' },
+  // v14 新增（只能在遙的「精神指令交易」用經驗購買）
+  snipe:     { name: '狙擊', cost: 20, desc: '本回合射擊武器（射程 2 以上）射程 +2' },
+  trust:     { name: '信賴', cost: 25, desc: '相鄰的我方機體恢復 30% HP' },
+  lucky:     { name: '幸運', cost: 30, desc: '下一次擊墜得到的經驗 2 倍' },
+  direct:    { name: '直擊', cost: 35, desc: '下一次攻擊無視對方裝甲' },
+  encourage: { name: '激勵', cost: 40, desc: '相鄰的我方機體氣力 +10' },
+  supply:    { name: '補給', cost: 45, desc: '相鄰的我方機體彈藥、EN 全滿' },
+  valor:     { name: '氣魄', cost: 55, desc: '氣力立即 +30' },
+  awaken:    { name: '覺醒', cost: 70, desc: '這次行動結束後可以再行動一次' },
+};
+
+// v14：經驗值經濟（開發者 2026-10-27 確認方案）
+// ・全隊共用一個「經驗錢包」（G.wallet）；升級、提升精神（SP 上限）、購買精神指令都從這裡扣，買了不能退
+// ・不再自動升級；精神指令不再隨等級自動學會，開場只有 PILOTS[...].spirits 的 3 個，最多帶 slots 個
+// ・賺：擊墜依敵機種類計價；命中不擊墜只有在傷害 ≥ 對方最大 HP 10% 時給 hitExp；被劇情保住不死的那一下不給；
+//       過關時每位出擊駕駛 clearBonus；說服民用機、逼退影蝠、擊落影蝠 BOSS 由 stages.js 用 G.award() 發
+// ・遙的交易窗口在 1-3 打完後開（劇情上 1-4 才上昭明號）：幕間的下一節索引 ≥ shopOpenAt
+const ECONOMY = {
+  killExp: { E01: 60, E02: 90, E03: 130, E04: 150, TURRET: 100, CIVIL: 0 }, killDefault: 60,
+  hitExp: 5, hitMinPct: 0.10, clearBonus: 200,
+  levelCost: (lv) => 100 + 20 * (lv - 1),       // 從 lv 升到 lv+1 的價錢（Lv1→2 100、Lv2→3 120……）
+  spUpCost: (n) => 200 + 100 * n, spUpAmount: 10, // 第 n+1 次提升精神：200、300、400……
+  slots: 6, shopOpenAt: 3,
+  shopHide: ['NOAH'],                             // 第一大關諾亞 1-3 之後是敵方，交易清單先不列
+  shop: [
+    ['flash', 300], ['accel', 300], ['focus', 300], ['surehit', 300], ['guts', 300], ['unyield', 300], ['snipe', 300],
+    ['ironwall', 500], ['spirit', 500], ['trust', 500], ['lucky', 500],
+    ['hotblood', 700], ['direct', 700], ['encourage', 700], ['supply', 700],
+    ['soul', 1000], ['valor', 1000],
+    ['awaken', 1500],
+  ],
 };
 
 // v6：等級（方案 A，開發者 2026-10-24；機體改造先保留）
+// v14：升級改成花經驗買（見 ECONOMY）；expPerLevel、expHit、expKill、expBoss、spiritsByLevel 已不使用，留著備查
 // 命中敵機 +10 經驗、擊墜 +50、擊墜 BOSS +150；每 100 經驗升 1 級
 // 每升 1 級：駕駛的 SP 上限 +2、機體 HP 上限 +100
 const LEVELING = { expPerLevel: 100, expHit: 10, expKill: 50, expBoss: 150, hpPerLevel: 100, spPerLevel: 2, spRegen: 0.10, maxLevel: 60 };
 
 // ───────── 武器 ─────────
 // hit：命中補正；ammo：-1＝不用彈藥；en：EN 消耗；morale：氣力需求
+// v14（開發者 10-27）：真實系（AURORA、作業機雲雀）每把武器都有彈藥次數；超級系（轟天巨神）每招都扣 EN。
+//   每一節開始補滿；我方回合開始時停在昭明號旁邊（相鄰）會補給：彈藥全滿、EN 全滿。
 // v5 新增：surehit 必中；ignoreArmor 無視裝甲；debuff 命中後讓對方下降數值（到對方下一個回合結束）
 //   debuff 例：{ mobility: -10 }、{ move: -2 }、{ armorPct: -20 }
 // v6 新增：debuff 可加 turns（持續幾個對方回合，預設 1）、armorFlat（裝甲直接減多少）、move: -99（移動歸零）；
@@ -100,15 +134,15 @@ const UNIT_TYPES = {
     hp: 5500, en: 180, armor: 1400, mobility: 135, move: 6,
     // v6：九招全部放進遊戲（開發者 2026-10-24：招式演出都做完了），演出改用 v4 版腳本（04 v4、06 v5）
     weapons: [
-      W({ name: '高頻振盪格鬥刺刀', min: 1, max: 1, power: 3200, hit: 20, anim: 'AURORA_01_v4' }),
-      W({ name: '極光光束軍刀・一閃', min: 1, max: 1, power: 4100, hit: 25, en: 15, morale: 105, anim: 'AURORA_02_v4', debuff: { armorFlat: -100 } }),
-      W({ name: '真・極光次元裂空斬', min: 1, max: 2, power: 5800, hit: 35, en: 50, morale: 130, anim: 'AURORA_03_v4' }),
+      W({ name: '高頻振盪格鬥刺刀', min: 1, max: 1, power: 3200, hit: 20, ammo: 12, anim: 'AURORA_01_v4' }),
+      W({ name: '極光光束軍刀・一閃', min: 1, max: 1, power: 4100, hit: 25, ammo: 6, morale: 105, anim: 'AURORA_02_v4', debuff: { armorFlat: -100 } }),
+      W({ name: '真・極光次元裂空斬', min: 1, max: 2, power: 5800, hit: 35, ammo: 2, morale: 130, anim: 'AURORA_03_v4' }),
       W({ name: '頭部近防密集陣機砲', min: 1, max: 2, power: 2600, hit: 30, ammo: 20, anim: 'AURORA_04_v4' }),
       W({ name: '高出力極光光束步槍', min: 1, max: 4, power: 3700, hit: 15, ammo: 10, anim: 'AURORA_05_v4' }),
-      W({ name: '擴散高能光束散射彈', min: 2, max: 4, power: 4300, hit: 10, en: 25, morale: 110, anim: 'AURORA_06_v5', debuff: { mobility: -25, turns: 2 } }),
+      W({ name: '擴散高能光束散射彈', min: 2, max: 4, power: 4300, hit: 10, ammo: 4, morale: 110, anim: 'AURORA_06_v5', debuff: { mobility: -25, turns: 2 } }),
       W({ name: '肩部追蹤微型導彈艙', min: 3, max: 6, power: 4100, hit: 15, ammo: 6, anim: 'AURORA_07_v4' }),
-      W({ name: '極光等離子加農砲', min: 2, max: 7, power: 5300, hit: 20, en: 55, morale: 120, anim: 'AURORA_08_v4' }),
-      W({ name: '全武裝連鎖覺醒暴風', min: 3, max: 8, power: 6600, hit: 30, en: 85, morale: 140, anim: 'AURORA_09_v4' }),   // MAP 模式之後再做，先當單體超必殺
+      W({ name: '極光等離子加農砲', min: 2, max: 7, power: 5300, hit: 20, ammo: 2, morale: 120, anim: 'AURORA_08_v4' }),
+      W({ name: '全武裝連鎖覺醒暴風', min: 3, max: 8, power: 6600, hit: 30, ammo: 1, morale: 140, anim: 'AURORA_09_v4' }),   // MAP 模式之後再做，先當單體超必殺
     ],
   },
   TITAN: {
@@ -116,11 +150,11 @@ const UNIT_TYPES = {
     hp: 7500, en: 220, armor: 1900, mobility: 85, move: 5,
     // v6：九招全部放進遊戲，接上 TITAN_10～18 演出
     weapons: [
-      W({ name: '鋼鐵魔神粉碎連打', min: 1, max: 1, power: 3500, hit: 10, anim: 'TITAN_10' }),
+      W({ name: '鋼鐵魔神粉碎連打', min: 1, max: 1, power: 3500, hit: 10, en: 5, anim: 'TITAN_10' }),
       W({ name: '巨神烈焰大車輪粉碎擊', min: 1, max: 1, power: 5100, hit: 15, en: 35, morale: 115, anim: 'TITAN_11' }),
       W({ name: '真・霸皇神角破天碎', min: 1, max: 2, power: 6400, hit: 20, en: 65, morale: 135, anim: 'TITAN_12', stun: true }),
-      W({ name: '火箭鐵拳・疾風噴射', min: 1, max: 3, power: 4300, hit: 20, ammo: 6, anim: 'TITAN_13' }),
-      W({ name: '強化螺旋穿甲飛拳', min: 1, max: 4, power: 4800, hit: 15, ammo: 4, morale: 110, anim: 'TITAN_14', pierce: 35 }),
+      W({ name: '火箭鐵拳・疾風噴射', min: 1, max: 3, power: 4300, hit: 20, en: 10, anim: 'TITAN_13' }),
+      W({ name: '強化螺旋穿甲飛拳', min: 1, max: 4, power: 4800, hit: 15, en: 20, morale: 110, anim: 'TITAN_14', pierce: 35 }),
       W({ name: '巨神高熱酸蝕風暴', min: 1, max: 3, power: 4200, hit: 10, en: 25, morale: 105, anim: 'TITAN_15', debuff: { armorFlat: -400, turns: 3 } }),
       W({ name: '胸部熔火爆炎・熱線射', min: 1, max: 5, power: 5600, hit: 15, en: 50, morale: 115, anim: 'TITAN_16' }),
       W({ name: '巨神光子絕對零度雷射', min: 2, max: 6, power: 4700, hit: 25, en: 40, morale: 110, anim: 'TITAN_17', debuff: { move: -99 } }),
@@ -131,7 +165,7 @@ const UNIT_TYPES = {
     name: '作業機「雲雀」', label: '雲雀', pilot: 'NOAH', guest: true,
     hp: 2400, en: 100, armor: 600, mobility: 165, move: 7,
     weapons: [
-      W({ name: '作業用鑽頭', min: 1, max: 1, power: 1600, hit: 10 }),
+      W({ name: '作業用鑽頭', min: 1, max: 1, power: 1600, hit: 10, ammo: 8 }),
       W({ name: '信號彈', min: 1, max: 3, power: 600, hit: 30, ammo: 3, effect: 'flare' }),
     ],
   },

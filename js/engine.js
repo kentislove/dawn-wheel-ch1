@@ -24,7 +24,8 @@ const G = {
 // ==================== 存檔（只存在瀏覽器裡；讀不到就當作沒有存檔） ====================
 const SAVE_KEY = 'srw_dawn_chapter1_save';
 function saveProgress(nextIndex) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ next: nextIndex, flags: G.flags, roster: G.roster })); } catch (e) { /* 私密視窗等情況存不了，不影響遊玩 */ }
+  if (G.practice) return;   // v14：開發者選關（練習）不存檔
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ next: nextIndex, flags: G.flags, roster: G.roster, wallet: G.wallet || 0 })); } catch (e) { /* 私密視窗等情況存不了，不影響遊玩 */ }
 }
 
 // ==================== v6：駕駛等級 ====================
@@ -33,7 +34,11 @@ const hasLevel = (pid) => !!(PILOTS[pid] && PILOTS[pid].spiritsByLevel);
 function rosterOf(pid) {
   if (!G.roster) G.roster = {};
   if (!G.roster[pid]) G.roster[pid] = { lv: 1, exp: 0 };
-  return G.roster[pid];
+  const r = G.roster[pid];
+  // v14：已學會的精神（開場 3 個＋買的）、提升精神次數。舊存檔沒有 learned → 沿用舊等級自動學會的那些
+  if (!r.learned) r.learned = (PILOTS[pid].spiritsByLevel ? spiritsAt(pid, r.lv) : PILOTS[pid].spirits.slice()).slice(0, ECONOMY.slots);
+  if (r.spUp === undefined) r.spUp = 0;
+  return r;
 }
 const spiritsAt = (pid, lv) => PILOTS[pid].spiritsByLevel.filter(([l]) => lv >= l).map(([, id]) => id);
 // 依等級套用 HP、SP 上限與精神指令（開場、升級時呼叫）
@@ -45,30 +50,27 @@ function applyLevel(u, keepRatio) {
   u.baseHp = T.hp + (r.lv - 1) * L.hpPerLevel;            // 基數隨等級成長，再乘型態百分比（雲雀）
   u.maxHp = Math.round(u.baseHp * form.mult);
   u.hp = keepRatio ? Math.max(1, Math.round(u.maxHp * hpRatio)) : u.maxHp;
-  u.maxSp = PILOTS[u.pilotId].sp + (r.lv - 1) * L.spPerLevel;
+  u.maxSp = PILOTS[u.pilotId].sp + (r.lv - 1) * L.spPerLevel + r.spUp * ECONOMY.spUpAmount;   // v14：提升精神
   u.sp = Math.min(u.sp, u.maxSp);
-  u.spirits = spiritsAt(u.pilotId, r.lv);
+  u.spirits = r.learned.slice();   // v14：只有學會（買到）的精神
   if (u.pilotId === 'NOAH' && G.flags && G.flags.meikyo) u.spirits.push('meikyo');   // 明鏡止水：劇情解鎖
   u.level = r.lv;
 }
 function gainExp(u, amount) {
-  if (!hasLevel(u.pilotId) || u.team !== 'player') return;
-  const r = rosterOf(u.pilotId), L = LEVELING;
-  if (r.lv >= L.maxLevel) return;
+  if (!hasLevel(u.pilotId) || u.team !== 'player' || amount <= 0) return;
   if (CHEAT.on('exp5')) amount *= 5;   // v13：金手指
-  r.exp += amount;
-  // v9：拿到經驗值時要看得到 → 記錄一行，並在地圖上機體頭頂飄出「＋經驗」
-  log(`✨ ${u.pilot} 經驗值 +${amount}（Lv ${r.lv}・${Math.min(r.exp, L.expPerLevel)}/${L.expPerLevel}）`, 'player');
+  G.wallet = (G.wallet || 0) + amount;
+  // v9：拿到經驗值時要看得到；v14：經驗進全隊錢包
+  log(`✨ ${u.pilot} 經驗 +${amount}（全隊經驗 ${G.wallet}）`, 'player');
   floatText(u, `+${amount} EXP`, '#fde68a');
-  while (r.exp >= L.expPerLevel && r.lv < L.maxLevel) {
-    r.exp -= L.expPerLevel; r.lv += 1;
-    const before = u.spirits.slice();
-    for (const x of alive((v) => v.pilotId === u.pilotId)) { x.sp += L.spPerLevel; applyLevel(x, true); x.hp = Math.min(x.maxHp, x.hp + L.hpPerLevel); }
-    const learned = u.spirits.filter((s) => !before.includes(s)).map((s) => SPIRITS[s].name);
-    floatText(u, `LEVEL UP! Lv ${r.lv}`, '#86efac', 0.5); SND.se('ui/UI13_level_up');   // v12
-    log(`⬆ ${u.pilot} 升到 Lv ${r.lv}！HP 上限 +${L.hpPerLevel}、SP 上限 +${L.spPerLevel}${learned.length ? '，學會精神指令【' + learned.join('、') + '】' : ''}`, 'player');
-  }
 }
+// v14：劇情發的經驗（說服、逼退、擊落 BOSS、過關獎勵）
+function award(amount, reason) {
+  if (CHEAT.on('exp5')) amount *= 5;
+  G.wallet = (G.wallet || 0) + amount;
+  log(`🎖️ ${reason}：經驗 +${amount}（全隊經驗 ${G.wallet}）`, 'player');
+}
+const killExp = (def) => ECONOMY.killExp[def.type] ?? ECONOMY.killDefault;
 // v9：地圖上機體頭頂飄字（經驗值、升級）。不擋遊戲流程，自己跑完自己消失。
 const floats = [];
 function floatText(u, text, color, delay = 0) {
@@ -200,11 +202,13 @@ function calcMoveRange(u) {
   const seen = new Set();
   return out.filter((c) => { const k = c.x + ',' + c.y; if (seen.has(k)) return false; seen.add(k); return true; });
 }
+// v14：精神【狙擊】本回合射擊武器（射程 2 以上）+2
+const wMax = (u, w) => w.max + (u.spirit && u.spirit.snipe && w.max > 1 ? 2 : 0);
 function calcAttackRange(u, w) {
   const out = [];
   for (let y = 0; y < G.rows; y++) for (let x = 0; x < G.cols; x++) {
     const d = Math.abs(u.x - x) + Math.abs(u.y - y);
-    if (d >= w.min && d <= w.max) out.push({ x, y });
+    if (d >= w.min && d <= wMax(u, w)) out.push({ x, y });
   }
   return out;
 }
@@ -227,7 +231,7 @@ function calcHit(att, def, w, resp) {
 function calcDmg(att, def, w, resp) {
   const t = terrainAt(def.x, def.y);
   const skill = PILOTS[att.pilotId].atk || 1;   // 駕駛員攻擊補正（無人機較弱）
-  const armor = w.ignoreArmor ? 0 : effArmor(def) * (1 - (w.pierce || 0) / 100);   // v5：無視裝甲、裝甲 debuff；v6：pierce 無視部分裝甲
+  const armor = w.ignoreArmor || att.spirit.direct ? 0 : effArmor(def) * (1 - (w.pierce || 0) / 100);   // v5：無視裝甲、裝甲 debuff；v6：pierce 無視部分裝甲
   let d = w.power * skill * (att.morale / 100) - armor * (1 + t.def / 100);
   if (att.spirit.soul) d *= 2.5;            // v6：魂（和熱血不疊加，魂優先）
   else if (att.spirit.hotblood) d *= 2;
@@ -245,7 +249,7 @@ function calcDmg(att, def, w, resp) {
 function bestWeapon(u, target, d) {
   let best = null, score = -1;
   for (const w of u.weapons) {
-    if (!weaponUsable(u, w) || d < w.min || d > w.max) continue;
+    if (!weaponUsable(u, w) || d < w.min || d > wMax(u, w)) continue;
     const s = calcDmg(u, target, w) * calcHit(u, target, w) / 100;
     if (s > score) { score = s; best = w; }
   }
@@ -422,10 +426,13 @@ function showUnit(u) {
   if (!u) return;
   $('unitName').textContent = u.name;
   const P = PILOTS[u.pilotId];
-  $('pilotName').textContent = `駕駛員：${u.pilotId === 'NONE' ? '－' : P.name}${u.level ? ` Lv ${u.level}（經驗 ${rosterOf(u.pilotId).exp}/${LEVELING.expPerLevel}）` : ''}（${{ player: '我方', enemy: '敵方', npc: '友軍', neutral: '第三方' }[u.team]}${u.guest ? '・客串' : ''}）`;
+  $('pilotName').textContent = `駕駛員：${u.pilotId === 'NONE' ? '－' : P.name}${u.level ? ` Lv ${u.level}` : ''}（${{ player: '我方', enemy: '敵方', npc: '友軍', neutral: '第三方' }[u.team]}${u.guest ? '・客串' : ''}）`;
   const lvOn = u.team === 'player' && hasLevel(u.pilotId) && u.level;   // v9：經驗值條
   $('expRow').style.display = lvOn ? 'flex' : 'none';
-  if (lvOn) { const r = rosterOf(u.pilotId); $('lvText').textContent = `Lv ${r.lv}`; $('expText').textContent = `${r.exp}/${LEVELING.expPerLevel}`; $('expBar').style.width = (100 * r.exp / LEVELING.expPerLevel) + '%'; }
+  if (lvOn) {   // v14：經驗條改成「距離下一級還差多少（全隊錢包）」
+    const r = rosterOf(u.pilotId), need = ECONOMY.levelCost(r.lv);
+    $('lvText').textContent = `Lv ${r.lv}`; $('expText').textContent = `全隊經驗 ${G.wallet || 0}／升級 ${need}`; $('expBar').style.width = Math.min(100, 100 * (G.wallet || 0) / need) + '%';
+  }
   $('unitBadge').textContent = u.label; $('unitBadge').style.background = (TEAM_COL[u.team] || TEAM_COL.enemy)[0];
   $('hpText').textContent = `${u.hp} / ${u.maxHp}`; $('hpBar').style.width = (100 * u.hp / u.maxHp) + '%';
   $('enText').textContent = `${u.en} / ${u.maxEn}`; $('enBar').style.width = (u.maxEn ? 100 * u.en / u.maxEn : 0) + '%';
@@ -469,6 +476,13 @@ function useSpirit(u, id) {
   log(`✨ ${u.pilot}：精神指令【${S.name}】（${S.desc}）`, 'player');
   if (id === 'guts') { const h = Math.floor(u.maxHp * 0.3); u.hp = Math.min(u.maxHp, u.hp + h); u.spirit.guts = false; log(`💚 ${u.name} 恢復 ${h} HP`, 'player'); }
   if (id === 'spirit') { u.morale = Math.min(150, u.morale + 10); u.spirit.spirit = false; }   // v6：氣合
+  // v14：新精神（相鄰＝上下左右一格的我方機體）
+  const near = () => alive((v) => v.team === 'player' && v.kind === 'unit' && v !== u && dist(v, u) === 1);
+  if (id === 'valor') { u.morale = Math.min(150, u.morale + 30); u.spirit.valor = false; }
+  if (id === 'trust') { for (const v of near()) { const h = Math.floor(v.maxHp * 0.3); v.hp = Math.min(v.maxHp, v.hp + h); log(`💚 ${v.name} 恢復 ${h} HP`, 'player'); } u.spirit.trust = false; }
+  if (id === 'encourage') { for (const v of near()) { v.morale = Math.min(150, v.morale + 10); log(`🔥 ${v.name} 氣力 +10`, 'player'); } u.spirit.encourage = false; }
+  if (id === 'supply') { for (const v of near()) { v.en = v.maxEn; v.weapons.forEach((x) => { if (x.ammo > 0) x.left = x.ammo; }); log(`🔧 ${v.name} 彈藥、EN 全滿`, 'player'); } u.spirit.supply = false; }
+  if (id === 'snipe' && G.sel === u && G.mode === 'attack' && G.weapon) G.atkRange = calcAttackRange(u, G.weapon);
   if (id === 'meikyo') { u.morale -= 50; u.formBeforeGolden = u.form; setForm(u, 'golden'); u.spirit.meikyo = false; }   // v6：明鏡止水
   if (id === 'accel' && G.sel === u && G.mode === 'move') G.moveRange = calcMoveRange(u);
   showUnit(u); render();
@@ -809,20 +823,24 @@ function attackPreview(att, def, w) {
   });
 }
 // 被攻擊時的應對（反擊／防禦／迴避）
+// v14：開發者 10-27「反擊沒有辦法讓我選擇對應的武器」→ 射程內每把可用的武器各一個按鈕，第一個是預估傷害最高的（建議）
+const costText = (w) => [w.en ? `EN ${w.en}` : '', w.ammo > 0 ? `彈 ${w.left}/${w.ammo}` : ''].filter(Boolean).join('・');
 function askResponse(att, def, w) {
   return new Promise((done) => {
     const d = dist(att, def);
-    const cw = canCounter(def) ? bestWeapon(def, att, d) : null;
+    const cws = canCounter(def) ? def.weapons.filter((x) => weaponUsable(def, x) && d >= x.min && d <= wMax(def, x))
+      .sort((a, b) => calcDmg(def, att, b) * calcHit(def, att, b) - calcDmg(def, att, a) * calcHit(def, att, a)) : [];
     $('rsTitle').textContent = `${att.name} 的【${w.name}】攻擊 ${def.name}！`;
-    const opts = [
-      ['counter', '反擊', cw ? `用【${cw.name}】反擊｜被命中 ${calcHit(att, def, w)}%・${calcDmg(att, def, w)}` : '（射程內沒有可用武器）'],
-      ['defend', '防禦', `傷害減半｜被命中 ${calcHit(att, def, w)}%・${calcDmg(att, def, w, 'defend')}`],
-      ['evade', '迴避', `命中減半｜被命中 ${calcHit(att, def, w, 'evade')}%・${calcDmg(att, def, w)}`],
-    ];
+    const hitMe = `被命中 ${calcHit(att, def, w)}%・${calcDmg(att, def, w)}`;
+    const opts = cws.map((x, i) => [{ resp: 'counter', w: x }, i === 0 ? '反擊（建議）' : '反擊',
+      `【${x.name}】${costText(x) ? '（' + costText(x) + '）' : ''}命中 ${calcHit(def, att, x)}%・傷害 ${calcDmg(def, att, x)}｜${hitMe}`]);
+    if (!cws.length) opts.push([null, '反擊', '（射程內沒有可用武器，或彈藥／EN 不足）']);
+    opts.push([{ resp: 'defend' }, '防禦', `傷害減半｜被命中 ${calcHit(att, def, w)}%・${calcDmg(att, def, w, 'defend')}`]);
+    opts.push([{ resp: 'evade' }, '迴避', `命中減半｜被命中 ${calcHit(att, def, w, 'evade')}%・${calcDmg(att, def, w)}`]);
     const box = $('rsButtons'); box.innerHTML = '';
     for (const [k, label, sub] of opts) {
       const b = document.createElement('button'); b.className = 'rs-btn';
-      b.disabled = k === 'counter' && !cw;
+      b.disabled = !k;
       b.innerHTML = `<b>${label}</b><small>${sub}</small>`;
       b.onclick = () => { $('response').style.display = 'none'; done(k); };
       box.appendChild(b);
@@ -839,13 +857,13 @@ async function strike(att, def, w, opt = {}) {
   const resp = opt.resp;
   const hitRate = calcHit(att, def, w, resp);
   const hit = Math.random() * 100 < hitRate;
-  let dmg = 0, killed = false;
+  let dmg = 0, killed = false, saved = false;   // saved：v14 被劇情保住不死（這一下不給經驗）
   if (def.spirit.flash) def.spirit.flash = false;
   if (hit) {
     dmg = calcDmg(att, def, w, resp);
     if (def.hp - dmg <= 0) {
       const hook = G.stage.hooks.interceptDeath;
-      if (def.immortal || (hook && hook(G, def, att))) dmg = Math.max(0, def.hp - 1);
+      if (def.immortal || (hook && hook(G, def, att))) { dmg = Math.max(0, def.hp - 1); saved = true; }
     }
     killed = def.hp - dmg <= 0;
   }
@@ -855,7 +873,7 @@ async function strike(att, def, w, opt = {}) {
   let shown = false;
   if (canPlayAnim(att, def, w)) shown = await playAnim(att, def, w, dmg, { react: !hit ? 'EVADE' : (resp === 'defend' && def.team === 'player' ? 'DEFEND' : 'DAMAGE') });
   if (!shown) await mapBattle(att, def, w, res);
-  att.spirit.hotblood = false; att.spirit.soul = false;
+  att.spirit.hotblood = false; att.spirit.soul = false; att.spirit.direct = false;
   if (w.oncePerStage) w.usedThisStage = true;
   if (hit) {
     if (def.spirit.unyield) def.spirit.unyield = false;   // v6：不屈用掉
@@ -866,7 +884,11 @@ async function strike(att, def, w, opt = {}) {
     if (w.stun && def.kind === 'unit' && def.hp > 0) { def.stunned = true; log(`💫 ${def.name} 被擊暈，下一個回合不能行動`, 'player'); }
     log(`💥 ${att.name}【${w.name}】命中 ${def.name}，${dmg} 傷害`, att.team === 'player' ? 'damage' : 'enemy');
     // v6：經驗值（我方命中 +10、擊墜 +50、擊墜 BOSS +150）；v9：移到命中紀錄之後，順序比較好讀
-    if (att.team === 'player' && def.team !== 'player') gainExp(att, def.hp <= 0 ? (def.boss ? LEVELING.expBoss : LEVELING.expKill) : LEVELING.expHit);
+    // v14：擊墜依敵機種類計價（幸運 2 倍）；命中不擊墜要傷害 ≥ 對方最大 HP 10% 才給；被劇情保住的那一下不給
+    if (att.team === 'player' && def.team !== 'player') {
+      if (def.hp <= 0) { gainExp(att, killExp(def) * (att.spirit.lucky ? 2 : 1)); att.spirit.lucky = false; }
+      else if (!saved && dmg >= def.maxHp * ECONOMY.hitMinPct) gainExp(att, ECONOMY.hitExp);
+    }
     if (G.stage.hooks.onDamage) await G.stage.hooks.onDamage(G, def, att, dmg, w);
     if (def.hp <= 0) {
       att.morale = Math.min(150, att.morale + 5);
@@ -890,11 +912,12 @@ async function strike(att, def, w, opt = {}) {
 }
 async function engage(att, def, w, playerInitiated) {
   G.busy = true; updateHud();
-  let resp = 'counter';
-  if (!playerInitiated && def.team === 'player' && def.kind === 'unit') resp = await askResponse(att, def, w);
+  let resp = 'counter', pick = null;
+  if (!playerInitiated && def.team === 'player' && def.kind === 'unit') { const r = await askResponse(att, def, w); resp = r.resp; pick = r.w || null; }
   await strike(att, def, w, { resp, animate: playerInitiated });
   if (def.hp > 0 && att.hp > 0 && resp === 'counter' && canCounter(def) && def.kind === 'unit') {
-    const cw = bestWeapon(def, att, dist(att, def));
+    // v14：玩家選的武器（打完一擊後還能用才用；例如被打掉氣力）；敵方仍自動挑最強
+    const cw = pick && weaponUsable(def, pick) ? pick : bestWeapon(def, att, dist(att, def));
     if (cw) await strike(def, att, cw, { animate: true });   // v8：反擊也播演出
   }
   await flushQueue();
@@ -973,7 +996,7 @@ function availableTalks(u) {
   });
 }
 function hasTarget(u) {
-  return u.weapons.some((w) => weaponUsable(u, w) && alive((e) => e.team === 'enemy' && !e.untargetable).some((e) => { const d = dist(u, e); return d >= w.min && d <= w.max; }));
+  return u.weapons.some((w) => weaponUsable(u, w) && alive((e) => e.team === 'enemy' && !e.untargetable).some((e) => { const d = dist(u, e); return d >= w.min && d <= wMax(u, w); }));
 }
 function showMenu(u) {
   const m = $('actionMenu'); if (m.style.display !== 'flex') SND.se('ui/UI05_menu_open', 0.6);   // v12
@@ -1004,7 +1027,7 @@ function cancelAction() {
 }
 $('btnAttack').onclick = () => {
   const u = G.sel; hideMenu();
-  G.weapon = u.weapons.find((w) => weaponUsable(u, w) && alive((e) => e.team === 'enemy' && !e.untargetable).some((e) => { const d = dist(u, e); return d >= w.min && d <= w.max; })) || u.weapons[0];
+  G.weapon = u.weapons.find((w) => weaponUsable(u, w) && alive((e) => e.team === 'enemy' && !e.untargetable).some((e) => { const d = dist(u, e); return d >= w.min && d <= wMax(u, w); })) || u.weapons[0];
   G.atkRange = calcAttackRange(u, G.weapon); G.mode = 'attack';
   log('🎯 右側可以切換武器；點紅色範圍內的敵機攻擊（右鍵取消）', 'system');
   showUnit(u); render();
@@ -1046,6 +1069,7 @@ $('btnAnim').onclick = () => { G.animOn = !G.animOn; saveSetting('srw_anim', G.a
 
 async function finishAction(u) {
   if (u) { u.acted = true; u.spirit.accel = false; }
+  if (u && u.hp > 0 && u.spirit.awaken) { u.spirit.awaken = false; u.acted = false; log(`⚡ ${u.pilot}【覺醒】：可以再行動一次`, 'player'); }   // v14
   G.sel = null; G.moveRange = []; G.atkRange = []; G.mode = 'idle'; G.origPos = null; hideMenu();
   render(); updateHud();
   if (u && u.hp > 0 && G.stage.hooks.afterAction) { G.busy = true; await G.stage.hooks.afterAction(G, u); await flushQueue(); G.busy = false; }
@@ -1058,8 +1082,14 @@ async function finishAction(u) {
 async function playerPhaseStart() {
   G.turn += 1; G.phase = 'PLAYER'; G.busy = true;
   for (const u of G.units) {
-    u.acted = false; u.spirit.surehit = false; u.spirit.ironwall = false; u.spirit.accel = false; u.spirit.focus = false;
+    u.acted = false; u.spirit.surehit = false; u.spirit.ironwall = false; u.spirit.accel = false; u.spirit.focus = false; u.spirit.snipe = false;
     if (u.team === 'player' && u.hp > 0) u.en = Math.min(u.maxEn, u.en + 5);
+    // v14：停在昭明號（母艦）旁邊 → 補給：彈藥、EN 全滿
+    if (u.team === 'player' && u.hp > 0 && u.kind === 'unit' && G.turn > 1 && G.units.some((s) => s.type === 'SHOMEI' && s.hp > 0 && dist(s, u) === 1)
+        && (u.en < u.maxEn || u.weapons.some((x) => x.ammo > 0 && x.left < x.ammo))) {
+      u.en = u.maxEn; u.weapons.forEach((x) => { if (x.ammo > 0) x.left = x.ammo; });
+      log(`🔧 ${u.name} 在昭明號旁完成補給：彈藥、EN 全滿`, 'player');
+    }
     // v6：精神點數每回合恢復上限的 10%（第 1 回合開場已滿，不用加）
     if (u.team === 'player' && u.hp > 0 && u.maxSp && G.turn > 1) u.sp = Math.min(u.maxSp, u.sp + Math.round(u.maxSp * LEVELING.spRegen));
     if (u.team === 'player' && u.hp > 0 && CHEAT.on('maxmorale')) u.morale = 150;   // v13：金手指
@@ -1178,12 +1208,10 @@ async function onVictory() {
   await banner('作戰成功', `${G.stage.id}「${G.stage.title}」`, 1600);
   await talk(G.stage.post);
   if (G.stage.onClear) G.stage.onClear(G);
-  // v9：過關時列出每位駕駛的等級與經驗值（這一關前 → 現在）
-  for (const [pid, r] of Object.entries(G.roster || {})) {
-    if (!hasLevel(pid)) continue;
-    const b = (G.rosterAtStageStart || {})[pid] || { lv: 1, exp: 0 };
-    log(`📈 ${PILOTS[pid].short || PILOTS[pid].name}：Lv ${b.lv}（${b.exp}）→ Lv ${r.lv}（${r.exp}/${LEVELING.expPerLevel}）`, 'player');
-  }
+  // v14：過關獎勵＝每位出擊（有等級）的駕駛 clearBonus
+  const fought = [...new Set(G.units.filter((u) => u.team === 'player' && hasLevel(u.pilotId)).map((u) => u.pilotId))];
+  if (fought.length) award(ECONOMY.clearBonus * fought.length, `過關獎勵（${fought.map((pid) => PILOTS[pid].short).join('、')} 出擊）`);
+  log(`📈 這一節得到經驗 ${(G.wallet || 0) - (G.walletAtStageStart || 0)}，全隊經驗 ${G.wallet || 0}`, 'player');
   const next = G.stageIndex + 1;
   saveProgress(next);
   showInterlude(next);   // v13：先停在幕間，可以存檔再繼續
@@ -1242,8 +1270,8 @@ async function startStage(index, retry = false) {
   G.telegraph = null; G.markers = []; G.queue = []; G.ended = false; G.busy = true; G.uidSeq = 0;
   G.flagsAtStageStart = JSON.parse(JSON.stringify(G.flags));
   // v6：重打這一關時，等級和經驗值回到開打前
-  if (retry && G.rosterAtStageStart) G.roster = JSON.parse(JSON.stringify(G.rosterAtStageStart));
-  else G.rosterAtStageStart = JSON.parse(JSON.stringify(G.roster || {}));
+  if (retry && G.rosterAtStageStart) { G.roster = JSON.parse(JSON.stringify(G.rosterAtStageStart)); G.wallet = G.walletAtStageStart || 0; }
+  else { G.rosterAtStageStart = JSON.parse(JSON.stringify(G.roster || {})); G.walletAtStageStart = G.wallet || 0; }
   G.map = S.map.map((row) => [...row].map((ch) => TERRAIN_BY_CH[ch] || TERRAIN_BY_CH['.']));
   G.rows = G.map.length; G.cols = G.map[0].length;
   layoutIso();   // v3：畫布大小改成斜角地圖
@@ -1278,13 +1306,15 @@ function showTitle() {
   const sel = $('stageSelect'); sel.innerHTML = '';
   STAGES.forEach((s, i) => sel.insertAdjacentHTML('beforeend', `<option value="${i}">${s.id}「${s.title}」</option>`));
   $('chkAnim').checked = G.animOn; $('chkDebug').checked = G.debug;
+  $('stageRow').style.display = G.debug ? 'flex' : 'none';   // v14：選關只在開發者模式顯示
 }
-$('btnNew').onclick = () => { G.flags = {}; G.roster = {}; startStage(0); };
-$('btnContinue').onclick = () => { const s = loadProgress(); if (!s) return; G.flags = s.flags || {}; G.roster = s.roster || {}; startStage(s.next); };
+$('btnNew').onclick = () => { G.flags = {}; G.roster = {}; G.wallet = 0; G.practice = false; startStage(0); };
+$('btnContinue').onclick = () => { const s = loadProgress(); if (!s) return; G.flags = s.flags || {}; G.roster = s.roster || {}; G.wallet = s.wallet || 0; G.practice = false; startStage(s.next); };
 // v9：選關時沿用存檔裡的等級與經驗值（v8 以前會重設成 Lv 1，看起來像經驗值沒有累計）
-$('btnSelect').onclick = () => { const s = loadProgress(); G.flags = {}; G.roster = (s && s.roster) ? JSON.parse(JSON.stringify(s.roster)) : {}; startStage(+$('stageSelect').value); };
+// v14：選關只給開發者測試（開發者模式才看得到），打完不存檔、不寫回經驗（開發者 10-27：正常遊玩只能一關一關接著打）
+$('btnSelect').onclick = () => { const s = loadProgress(); G.flags = {}; G.roster = (s && s.roster) ? JSON.parse(JSON.stringify(s.roster)) : {}; G.wallet = (s && s.wallet) || 0; G.practice = true; startStage(+$('stageSelect').value); };
 $('chkAnim').onchange = (e) => { G.animOn = e.target.checked; saveSetting('srw_anim', G.animOn); };
-$('chkDebug').onchange = (e) => { G.debug = e.target.checked; saveSetting('srw_debug', G.debug); };
+$('chkDebug').onchange = (e) => { G.debug = e.target.checked; saveSetting('srw_debug', G.debug); $('stageRow').style.display = G.debug ? 'flex' : 'none'; };
 
 // ==================== v13：存檔欄位（3 格）＋過關幕間 ====================
 // 「最近進度」（SAVE_KEY）照舊每過一節自動更新，給「繼續」用；3 個欄位是玩家自己選要不要存、存哪一格。
@@ -1295,7 +1325,7 @@ function slotLabel(d) {
   const t = new Date(d.time || 0), pad = (x) => String(x).padStart(2, '0');
   const when = d.time ? `${t.getFullYear()}/${pad(t.getMonth() + 1)}/${pad(t.getDate())} ${pad(t.getHours())}:${pad(t.getMinutes())}` : '';
   const lv = Object.entries(d.roster || {}).filter(([pid]) => hasLevel(pid)).map(([pid, r]) => `${PILOTS[pid].short || PILOTS[pid].name} Lv${r.lv}`).join('、');
-  return { where, sub: [when, lv].filter(Boolean).join('・') };
+  return { where, sub: [when, lv, `經驗 ${d.wallet || 0}`].filter(Boolean).join('・') };
 }
 let slotDone = null;   // 欄位畫面關掉後要做的事（從幕間打開的要回到幕間）
 function openSlots(mode, after) {
@@ -1317,8 +1347,8 @@ function openSlots(mode, after) {
         SND.se('ui/UI02_confirm'); openSlots('save', slotDone); $('slotHint').textContent = `已存到欄位 ${n}。`;
       } else {
         $('slotModal').style.display = 'none';
-        G.flags = d.flags || {}; G.roster = d.roster || {};
-        try { localStorage.setItem(SAVE_KEY, JSON.stringify({ next: d.next, flags: G.flags, roster: G.roster })); } catch (e) { /* 忽略 */ }
+        G.flags = d.flags || {}; G.roster = d.roster || {}; G.wallet = d.wallet || 0; G.practice = false;
+        try { localStorage.setItem(SAVE_KEY, JSON.stringify({ next: d.next, flags: G.flags, roster: G.roster, wallet: G.wallet })); } catch (e) { /* 忽略 */ }
         if (d.next < STAGES.length) startStage(d.next);
         else { $('title').style.display = 'none'; showChapterEnd(); }
       }
@@ -1336,6 +1366,9 @@ function showInterlude(next) {
   interNext = next;
   $('ilText').textContent = next < STAGES.length ? `接下來：${STAGES[next].id}「${STAGES[next].title}」。要先存檔嗎？` : '第一大關全部完成！要先存檔嗎？';
   $('ilNext').textContent = next < STAGES.length ? '繼續下一節' : '看結尾';
+  $('ilSave').style.display = G.practice ? 'none' : '';
+  $('ilShop').style.display = next >= ECONOMY.shopOpenAt ? '' : 'none';   // v14：1-3 打完才開（遙 1-4 登場）
+  if (G.practice) $('ilText').textContent += '（開發者選關：不存檔）';
   $('interlude').style.display = 'flex';
 }
 $('ilNext').onclick = () => { $('interlude').style.display = 'none'; if (interNext < STAGES.length) startStage(interNext); else showChapterEnd(); };
@@ -1405,7 +1438,7 @@ $('btnCeTitle').onclick = () => showTitle();
 
 // ==================== 給 stages.js 使用的工具 ====================
 Object.assign(G, {
-  talk, banner, log, spawn, unit: unitById, alive, render, sleep, directDamage, playAnim,
+  talk, banner, log, award, spawn, unit: unitById, alive, render, sleep, directDamage, playAnim,
   once(key) { if (G.onceKeys.has(key)) return false; G.onceKeys.add(key); return true; },
   later(fn) { G.queue.push(fn); },
   remove(uid) { const u = G.units.find((x) => x.uid === uid); if (u) u.hp = 0; render(); },
