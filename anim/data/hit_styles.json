@@ -39,19 +39,21 @@
    "type": "shots",
    "kind": "scatter",
    "t": 0.2,
-   "count": 9,
+   "count": 45,
    "push": 60,
    "finale": 1.5,
-   "_": "中程散射，威力高於第 5 招"
+   "_": "中程散射，威力高於第 5 招",
+   "_彈數": "2026-10-25 開發者：五倍（9→45）"
   },
   "AURORA_07": {
    "type": "shots",
    "kind": "missiles",
    "t": 0.2,
-   "count": 16,
+   "count": 80,
    "push": 60,
    "finale": 1.9,
-   "_": "第 4 招加強版，中距離飛彈"
+   "_": "第 4 招加強版，中距離飛彈",
+   "_彈數": "2026-10-25 開發者：五倍（16→80）"
   },
   "AURORA_08": {
    "type": "shots",
@@ -179,7 +181,8 @@
    ],
    "finish": "up",
    "len": 3.4,
-   "_": "雀步連環拳：左右直拳連打＋上勾拳昇空"
+   "_": "雀步連環拳：左右直拳連打＋上勾拳昇空",
+   "body_h": 567
   },
   "HIBARI_02": {
    "type": "combo",
@@ -201,7 +204,8 @@
    ],
    "finish": "back",
    "len": 2.4,
-   "_": "鷹爪擒拿：爪擊連抓"
+   "_": "鷹爪擒拿：爪擊連抓",
+   "body_h": 542
   },
   "HIBARI_03": {
    "type": "combo",
@@ -226,7 +230,8 @@
    "behind": false,
    "finish": "back",
    "len": 3.3,
-   "_": "白鶴亮翅踢：衝到敵機身旁旋轉腿連踢"
+   "_": "白鶴亮翅踢：衝到敵機身旁旋轉腿連踢",
+   "body_h": 662
   },
   "HIBARI_04": {
    "type": "super",
@@ -253,7 +258,8 @@
    ],
    "finish": "up",
    "len": 3.4,
-   "_": "雲雀鑽天掌：旋轉連擊後騰空昇龍"
+   "_": "雲雀鑽天掌：旋轉連擊後騰空昇龍",
+   "body_h": 720
   },
   "HIBARI_06": {
    "type": "combo",
@@ -273,7 +279,8 @@
    ],
    "finish": "off",
    "len": 2.4,
-   "_": "隼落鐵山靠：一擊撞飛出畫面"
+   "_": "隼落鐵山靠：一擊撞飛出畫面",
+   "body_h": 622
   },
   "HIBARI_07": {
    "type": "combo",
@@ -293,7 +300,8 @@
    ],
    "finish": "boom",
    "len": 2.6,
-   "_": "朱雀神掌：貼身一掌，擊飛＋爆炸"
+   "_": "朱雀神掌：貼身一掌，擊飛＋爆炸",
+   "body_h": 717
   },
   "HIBARI_08": {
    "type": "combo",
@@ -301,11 +309,11 @@
    "lead": 0.15,
    "scale": 0.78,
    "range": [
-    30,
-    60
+    22,
+    28
    ],
    "hits": [
-    43
+    28
    ],
    "reach": [
     900,
@@ -314,7 +322,18 @@
    "finish": "phoenix",
    "sprite": "assets/units/HIBARI_phoenix.png",
    "len": 2.8,
-   "_": "朱雀天驚拳：鳳凰飛撲全屏爆炸"
+   "_": "朱雀天驚拳：鳳凰飛撲全屏爆炸",
+   "clean": "assets/HIBARI_08/clean_hold.png",
+   "body_h": 709,
+   "phx": [
+    "assets/HIBARI_08/phoenix/p_01.png",
+    "assets/HIBARI_08/phoenix/p_02.png",
+    "assets/HIBARI_08/phoenix/p_03.png",
+    "assets/HIBARI_08/phoenix/p_04.png",
+    "assets/HIBARI_08/phoenix/p_05.png",
+    "assets/HIBARI_08/phoenix/p_06.png"
+   ],
+   "_phx": "2026-10-27 開發者：鳳凰被畫框切 → 動作只播 22～28 格（蓄力→火焰出拳），之後乾淨格停住；衝擊光環程式畫；鳳凰用圖片區 6 格拍翅分格飛穿敵機（舊值 range [30,60]、hits [43]）"
   },
   "HIBARI_F01": {
    "type": "combo",
@@ -340,7 +359,8 @@
    ],
    "finish": "up",
    "len": 3.4,
-   "_": "雀步連環拳：左右直拳連打＋上勾拳昇空"
+   "_": "雀步連環拳：左右直拳連打＋上勾拳昇空",
+   "body_h": 719
   },
   "HIBARI_F02": {
    "type": "combo",
@@ -361,7 +381,8 @@
    ],
    "finish": "back",
    "len": 2.4,
-   "_": "鷹爪擒拿：爪擊連抓"
+   "_": "鷹爪擒拿：爪擊連抓",
+   "body_h": 645
   },
   "HIBARI_F03": {
    "type": "combo",
@@ -389,7 +410,8 @@
    "behind": false,
    "finish": "back",
    "len": 3.3,
-   "_": "白鶴亮翅踢：衝到敵機身旁旋轉腿連踢"
+   "_": "白鶴亮翅踢：衝到敵機身旁旋轉腿連踢",
+   "body_h": 724
   },
   "HIBARI_F04": {
    "type": "super",
@@ -417,7 +439,8 @@
    ],
    "finish": "up",
    "len": 3.4,
-   "_": "雲雀鑽天掌：旋轉連擊後騰空昇龍"
+   "_": "雲雀鑽天掌：旋轉連擊後騰空昇龍",
+   "body_h": 736
   },
   "HIBARI_F06": {
    "type": "combo",
@@ -437,7 +460,59 @@
    ],
    "finish": "off",
    "len": 2.4,
-   "_": "隼落鐵山靠：一擊撞飛出畫面"
+   "_": "隼落鐵山靠：一擊撞飛出畫面",
+   "body_h": 690
+  },
+  "HIBARI_GF07": {
+   "type": "combo",
+   "fps": 30,
+   "lead": 0.15,
+   "scale": 0.78,
+   "range": [
+    55,
+    100
+   ],
+   "hits": [
+    75
+   ],
+   "reach": [
+    945,
+    320
+   ],
+   "finish": "boom",
+   "len": 2.6,
+   "_": "朱雀神掌：貼身一掌，擊飛＋爆炸（金色完全體）",
+   "body_h": 745
+  },
+  "HIBARI_GF08": {
+   "type": "combo",
+   "fps": 30,
+   "lead": 0.15,
+   "scale": 0.78,
+   "range": [
+    10,
+    34
+   ],
+   "hits": [
+    34
+   ],
+   "reach": [
+    1080,
+    300
+   ],
+   "finish": "phoenix",
+   "sprite": "assets/units/HIBARI_phoenix.png",
+   "len": 2.8,
+   "_": "朱雀天驚拳：鳳凰飛撲全屏爆炸（金色完全體）；2026-10-27 收招改停在圖片區擦掉鳳凰、Gemini 補拳頭的乾淨出拳格",
+   "clean": "assets/HIBARI_GF08/clean_hold.png",
+   "body_h": 723
+  },
+  "HIBARI_09": {
+   "type": "super",
+   "kind": "phoenix",
+   "t": 0.45,
+   "sprite": "assets/units/HIBARI_phoenix.png",
+   "_": "2026-10-26 開發者：受擊改成鳳凰飛撲（火鳥從左邊撞進敵機、火焰爆裂、火羽四散、全屏火光）"
   }
  }
 }

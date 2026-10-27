@@ -64,7 +64,7 @@ function gainExp(u, amount) {
     const before = u.spirits.slice();
     for (const x of alive((v) => v.pilotId === u.pilotId)) { x.sp += L.spPerLevel; applyLevel(x, true); x.hp = Math.min(x.maxHp, x.hp + L.hpPerLevel); }
     const learned = u.spirits.filter((s) => !before.includes(s)).map((s) => SPIRITS[s].name);
-    floatText(u, `LEVEL UP! Lv ${r.lv}`, '#86efac', 0.5);
+    floatText(u, `LEVEL UP! Lv ${r.lv}`, '#86efac', 0.5); SND.se('ui/UI13_level_up');   // v12
     log(`⬆ ${u.pilot} 升到 Lv ${r.lv}！HP 上限 +${L.hpPerLevel}、SP 上限 +${L.spPerLevel}${learned.length ? '，學會精神指令【' + learned.join('、') + '】' : ''}`, 'player');
   }
 }
@@ -460,6 +460,7 @@ function useSpirit(u, id) {
   if (u.sp < S.cost || u.spirit[id]) return;
   if (S.needMorale && u.morale < S.needMorale) return;
   u.sp -= S.cost; u.spirit[id] = true;
+  if (SPIRIT_SND[id]) SND.se('ui/' + SPIRIT_SND[id]);   // v12
   log(`✨ ${u.pilot}：精神指令【${S.name}】（${S.desc}）`, 'player');
   if (id === 'guts') { const h = Math.floor(u.maxHp * 0.3); u.hp = Math.min(u.maxHp, u.hp + h); u.spirit.guts = false; log(`💚 ${u.name} 恢復 ${h} HP`, 'player'); }
   if (id === 'spirit') { u.morale = Math.min(150, u.morale + 10); u.spirit.spirit = false; }   // v6：氣合
@@ -486,6 +487,12 @@ function updateHud() {
 // ==================== 對話系統 ====================
 let dlgSkip = false;
 function speakerColor(name) { return SPEAKER_COLORS[name] || '#64748b'; }
+// v12：對話頭像。表情由 js/portrait_expr.json 逐句指定（「說話者|台詞」→ 檔名）；沒指定的句子用該角色的預設表情
+const PORTRAIT_DEFAULT = { '蕾歐娜': 'LEONA_normal', '諾亞': 'NOAH_pilot_normal', '甲斐': 'KAI_normal', '瑪格麗特': 'MARGARET_normal', '席格': 'SIEG_normal',
+  '通信士 遙': 'HARUKA_normal', '格雷少將': 'GRAY_smile', '神城 玄藏': 'GENZO_normal', '小米': 'MII_smile', '阿茲拉爾': 'AZRAEL_normal', '神城 剛': 'GO_determined' };
+let PORTRAIT_EXPR = {};
+fetch('js/portrait_expr.json').then((r) => r.json()).then((m) => { PORTRAIT_EXPR = m; }).catch(() => {});
+function portraitOf(name, text) { return PORTRAIT_EXPR[name + '|' + text] || PORTRAIT_DEFAULT[name] || null; }
 async function talk(lines) {
   if (!lines || !lines.length) return;
   const box = $('dialogue'); box.style.display = 'flex'; dlgSkip = false;
@@ -499,8 +506,10 @@ async function talk(lines) {
     else if (ln.sys) { text = ln.sys; cls = 'sys'; }
     $('dlgName').textContent = name;
     $('dlgPortrait').style.display = name ? 'flex' : 'none';
-    $('dlgPortrait').textContent = name ? name.replace(/^.*\s/, '')[0] : '';
-    $('dlgPortrait').style.background = speakerColor(name);
+    // v12：有正式頭像就顯示圖片（表情照 js/portrait_expr.json），沒有才用色塊＋名字第一個字
+    const face = name ? portraitOf(name, text) : null;
+    $('dlgPortrait').textContent = name && !face ? name.replace(/^.*\s/, '')[0] : '';
+    $('dlgPortrait').style.background = face ? `#0b1020 url("assets/portraits/${face}.webp") center/cover` : speakerColor(name);
     $('dlgBox').className = 'dlg-box ' + cls;
     await typeText($('dlgText'), name ? `「${text}」` : text);
     await waitAdvance();
@@ -676,6 +685,7 @@ async function getAnimPlayer() {
   animPlayer = await BattleAnimPlayer.create($('animCanvas'), { base: ANIM_BASE });
   // 主角機改名（開發者 2026-10-19 決定），只改記憶體中的資料，不動演出素材資料夾
   animPlayer.chars.units.AURORA.name = '極光鋼姬';
+  fixPilotPortraits(animPlayer.chars);   // v12
   animPlayer.on('event', (ev) => animHandler && animHandler(ev));
   return animPlayer;
 }
@@ -683,8 +693,14 @@ async function getEnemyAnimPlayer() {
   if (enemyAnimPlayer) return enemyAnimPlayer;
   enemyAnimPlayer = await BattleEnemyPlayer.create($('animCanvas'), { base: ANIM_BASE });
   enemyAnimPlayer.chars.units.AURORA.name = '極光鋼姬';
+  fixPilotPortraits(enemyAnimPlayer.chars);   // v12
   enemyAnimPlayer.on('event', (ev) => animHandler && animHandler(ev));
   return enemyAnimPlayer;
+}
+// v12：演出台詞框的駕駛員頭像改用正式頭像（characters.json 原本寫的 GO.png 等檔案不存在，會顯示佔位幅）
+function fixPilotPortraits(chars) {
+  const P = { GO: 'GO_determined', MARGARET: 'MARGARET_normal', NOAH: 'NOAH_pilot_determined' };
+  for (const [k, f] of Object.entries(P)) if (chars.pilots[k]) chars.pilots[k].portrait = `assets/portraits/${f}.png`;
 }
 // v8：這一次攻擊能不能播演出（我方：有招式腳本；敵方：有招式腳本，而且被打的我方機體有受擊／防禦／迴避序列）
 function canPlayAnim(att, def, w) {
@@ -728,10 +744,17 @@ async function playAnim(att, def, w, dmg, opt = {}) {
     p.speed = animSpeed;
     if (opt.line) p.line = opt.line;
     $('animLoading').style.display = 'none';
+    const cues = battleCues(att, def, w, react, p); SND.setDuck(true); SND.se('ui/UI08_battle_transition', 0.6);   // v12
     await new Promise((done) => {
       let finished = false;
-      const finish = () => { if (finished) return; finished = true; p.pause(); animHandler = null; $('animSkip').onclick = null; done(); };
+      const finish = () => { if (finished) return; finished = true; p.pause(); animHandler = null; $('animSkip').onclick = null; SND.stopBattle(); SND.setDuck(false); done(); };
+      const tick = () => { if (finished) return; while (cues.length && p.t >= cues[0][0]) { const c = cues.shift(); SND.se(c[1], c[2], true); } requestAnimationFrame(tick); };   // v12：照時間點放音效
+      requestAnimationFrame(tick);
       animHandler = (ev) => {
+        if (ev.type === 'audio' && att.team !== 'player' && REACT_SND[ev.cue]) {   // v12：敵方命中音效＋我方受擊／防禦／迴避
+          if (ev.cue !== 'se_evade') SND.se(`se/${sndMove(w.anim)}_hit`, 0.8, true);
+          if (sndPrefix(def)) SND.se(`se/${sndPrefix(def)}_${REACT_SND[ev.cue]}`, 1, true);
+        }
         if (ev.type === 'damage_popup' && dmg !== null && react !== 'EVADE') { $('animDamage').textContent = dmg; $('animDamage').classList.add('show'); }
         if (ev.type === 'end') finish();
       };
@@ -746,6 +769,24 @@ async function playAnim(att, def, w, dmg, opt = {}) {
   if (dmg !== null) await sleep(250);
   ov.style.display = 'none';
   return true;
+}
+
+// v12：一招演出的音效時間表 [秒, 檔名, 音量]。音樂區的機體音效每招三段：start（出招前 1.0 秒）、main（動作 3.0 秒）、hit（命中 2.5 秒）
+const REACT_SND = { se_hit_heavy: 'damage', se_guard: 'guard', se_evade: 'evade' };
+function battleCues(att, def, w, react, p) {
+  const S = (p.move && p.move.segments) || {}, mv = sndMove(w.anim), me = sndPrefix(att), them = sndPrefix(def);
+  // 播放器 2026-10-25 起跳過首尾幀切入卡片，p.t 是「跳過後」的時間 → 招式檔的時間要用 p._disp 換算
+  const disp = (t) => (p._disp ? p._disp(t) : t);
+  const at = (seg, d) => disp(S[seg] ? S[seg][0] : d);
+  const L = [];
+  if (me) L.push([0.05, `se/${me}_deploy`, 0.8]);
+  L.push([Math.max(0.3, at('action', 2.8) - 0.35), `se/${mv}_start`, 1], [at('action', 2.8), `se/${mv}_main`, 1]);
+  const H = at('hit', 7.1) + 0.15;
+  if (att.team === 'player') {        // 我方出招：敵機的反應在演出裡，音效由這裡放
+    if (react === 'EVADE') L.push([H, them ? `se/${them}_evade` : null, 1]);
+    else { L.push([H, `se/${mv}_hit`, 1]); if (react === 'DEFEND' && them) L.push([H + 0.1, `se/${them}_guard`, 0.9]); }
+  }   // 敵方出招：命中音效和我方反應一起，由演出的 audio 事件觸發（見 playAnim）
+  return L.filter((c) => c[1]).sort((a, b) => a[0] - b[0]);
 }
 
 // 攻擊預覽（玩家攻擊前）
@@ -824,6 +865,7 @@ async function strike(att, def, w, opt = {}) {
     if (def.hp <= 0) {
       att.morale = Math.min(150, att.morale + 5);
       log(`🔥 ${def.name} 被擊墜！`, att.team === 'player' ? 'player' : 'enemy');
+      SND.se(sndPrefix(def) ? `se/${sndPrefix(def)}_destroyed` : 'se/E01_destroyed');   // v12
       if (G.stage.hooks.onDefeat) await G.stage.hooks.onDefeat(G, def, att);
     }
   } else {
@@ -902,6 +944,7 @@ async function onCellClick(x, y) {
     const can = G.moveRange.some((c) => c.x === x && c.y === y);
     if (can && (!clicked || clicked === G.sel)) {
       G.origPos = { x: G.sel.x, y: G.sel.y }; G.sel.x = x; G.sel.y = y; G.moveRange = []; G.mode = 'menu';
+      if (sndPrefix(G.sel)) SND.se(`se/${sndPrefix(G.sel)}_move`, 0.7);   // v12
       showMenu(G.sel); render(); return;
     }
   }
@@ -926,7 +969,8 @@ function hasTarget(u) {
   return u.weapons.some((w) => weaponUsable(u, w) && alive((e) => e.team === 'enemy' && !e.untargetable).some((e) => { const d = dist(u, e); return d >= w.min && d <= w.max; }));
 }
 function showMenu(u) {
-  const m = $('actionMenu'); m.style.display = 'flex';
+  const m = $('actionMenu'); if (m.style.display !== 'flex') SND.se('ui/UI05_menu_open', 0.6);   // v12
+  m.style.display = 'flex';
   $('btnAttack').disabled = !hasTarget(u);
   $('btnSpirit').style.display = u.spirits && u.spirits.length ? 'block' : 'none';   // v8
   const talks = availableTalks(u);
@@ -943,6 +987,7 @@ function showMenu(u) {
 function hideMenu() { $('actionMenu').style.display = 'none'; }
 function cancelAction() {
   if (G.busy || G.phase !== 'PLAYER') return;
+  if (G.mode !== 'idle') SND.se('ui/UI03_cancel', 0.7);   // v12
   if (G.mode === 'attack') { G.atkRange = []; G.mode = 'menu'; showMenu(G.sel); render(); return; }
   if (G.mode === 'menu' && G.sel) {
     if (G.origPos) { G.sel.x = G.origPos.x; G.sel.y = G.origPos.y; G.origPos = null; }
@@ -960,7 +1005,7 @@ $('btnAttack').onclick = () => {
 $('btnTalk').onclick = async () => {
   const u = G.sel; const t = availableTalks(u)[0]; if (!t) return;
   hideMenu(); G.mode = 'idle';
-  G.onceKeys.add('talk:' + t.from + '>' + t.to);
+  G.onceKeys.add('talk:' + t.from + '>' + t.to); SND.se('ui/UI21_persuade');   // v12
   G.busy = true; updateHud();
   await t.run(G, u, unitById(t.to));
   await flushQueue();
@@ -1012,6 +1057,7 @@ async function playerPhaseStart() {
     if (u.team === 'player' && u.hp > 0 && u.maxSp && G.turn > 1) u.sp = Math.min(u.maxSp, u.sp + Math.round(u.maxSp * LEVELING.spRegen));
   }
   updateHud(); render();
+  SND.music(`MAP_${G.stage.id}`); SND.se('ui/UI10_player_phase');   // v12：我方回合音樂
   await banner(`第 ${G.turn} 回合`, '我方回合', 900);
   log(`── 第 ${G.turn} 回合・我方 ──`, 'player');
   G.busy = true;
@@ -1026,6 +1072,7 @@ async function endPlayerPhase() {
   G.sel = null; G.moveRange = []; G.atkRange = []; G.mode = 'idle'; hideMenu();
   tickDebuffs('player');   // v5：我方回合結束，我方身上的 debuff 倒數
   G.phase = 'ENEMY'; G.busy = true; updateHud(); render();
+  SND.music(`MAP_${G.stage.id}_ENEMY`); SND.se('ui/UI11_enemy_phase');   // v12：敵方回合版音樂
   await banner('敵方回合', '', 800);
   log(`── 第 ${G.turn} 回合・敵方 ──`, 'enemy');
   // v5：E09【因果歪曲】敵方回合開始時回復 HP
@@ -1119,6 +1166,7 @@ async function checkEnd() {
 }
 async function onVictory() {
   G.ended = true; G.busy = true; G.telegraph = null; updateHud(); render();
+  SND.se('ui/UI14_reward'); SND.music(`EV${G.stage.id}`);   // v12：戰後劇情用劇情音樂
   await banner('作戰成功', `${G.stage.id}「${G.stage.title}」`, 1600);
   await talk(G.stage.post);
   if (G.stage.onClear) G.stage.onClear(G);
@@ -1154,13 +1202,16 @@ async function preloadStageAnims() {
   try {
     if (!preloadManifest) preloadManifest = await fetch(ANIM_BASE + 'preload_manifest.json').then((r) => r.json());
   } catch (e) { return; }
-  const M = preloadManifest, urls = new Set(M.common);
+  // v12：順序改成「戰鬥背景 → 我方招式 → 我方反應 → 敵機受擊 → 敵方招式 → 其他共用特效」，最先用到的先下載
+  const M = preloadManifest, urls = new Set(M.common.filter((x) => x.includes('/backgrounds/')));
+  for (const u of G.units) if (u.team === 'player' && u.animUnit) u.weapons.forEach((w) => (M.moves[w.anim] || []).forEach((x) => urls.add(x)));
   for (const u of G.units) {
     if (u.team === 'player' && u.animUnit) u.weapons.forEach((w) => (M.moves[w.anim] || []).forEach((x) => urls.add(x)));
     if (u.team === 'player' && u.animUnit) ((M.units || {})[u.animUnit] || []).forEach((x) => urls.add(x));   // v8：我方受擊／防禦／迴避
     if (u.team !== 'player') (M.targets[u.eid || 'PLACEHOLDER'] || []).forEach((x) => urls.add(x));
     if (u.team === 'enemy') u.weapons.forEach((w) => (M.moves[w.anim] || []).forEach((x) => urls.add(x)));      // v8：敵方出招
   }
+  for (const x of M.common) urls.add(x);   // 其他共用特效最後
   const list = [...urls].map((x) => x.replace(/^anim\//, ANIM_BASE));
   let i = 0, bytes = 0, fails = 0;
   const worker = async () => {
@@ -1171,7 +1222,7 @@ async function preloadStageAnims() {
     }
   };
   const t0 = performance.now();
-  await Promise.all([1, 2, 3].map(worker));   // v8：3 條就好，留連線給遊戲本身
+  await Promise.all([1, 2, 3, 4, 5, 6].map(worker));   // v12：3 → 6 條（GitHub Pages 是 HTTP/2，可以同時多抓）
   if (token === preloadToken && G.debug) log(`🎞️ 演出素材預先下載完成：${list.length} 個檔、${(bytes / 1e6).toFixed(1)} MB、${((performance.now() - t0) / 1000).toFixed(1)} 秒${fails ? `（${fails} 個失敗）` : ''}`, 'system');
   else if (token !== preloadToken && G.debug) log(`🎞️ 預先下載中斷（換關卡）：已下載 ${i}/${list.length}`, 'system');
 }
@@ -1194,10 +1245,11 @@ async function startStage(index, retry = false) {
   S.setup(G);
   updateHud(); render();
   preloadStageAnims();   // v7：趁看開場對話時，在背景先下載本關會用到的演出素材
+  SND.music(`EV${S.id}`);   // v12：開場劇情音樂
   await banner(`${S.id}`, S.title, 1600);
   if (!retry) await talk(S.pre);
   else await talk([{ sys: '重新挑戰。' }]);
-  log(`★ 作戰開始：${S.id}「${S.title}」`, 'system');
+  log(`★ 作戰開始：${S.id}「${S.title}」`, 'system'); SND.se('ui/UI12_mission_start');   // v12
   log(`勝利條件：${S.win}`, 'player'); log(`敗北條件：${S.lose}`, 'enemy');
   G.busy = false;
   await playerPhaseStart();
@@ -1206,7 +1258,7 @@ async function startStage(index, retry = false) {
 
 // ==================== 標題畫面與章節結尾 ====================
 function showTitle() {
-  G.stage = null; G.ended = true;
+  G.stage = null; G.ended = true; SND.music('BGM_TITLE');   // v12
   $('title').style.display = 'flex'; $('chapterEnd').style.display = 'none';
   const save = loadProgress();
   $('btnContinue').style.display = save && save.next > 0 && save.next < STAGES.length ? 'block' : 'none';
@@ -1256,3 +1308,6 @@ window.onload = () => {
   G.animOn = loadSetting('srw_anim', true); G.debug = loadSetting('srw_debug', false);
   showTitle();
 };
+
+// v12：素材快取（sw.js）。只有在網站上（http/https）才能用；直接開檔案時略過
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});

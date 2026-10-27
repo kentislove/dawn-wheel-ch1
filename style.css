@@ -188,3 +188,8 @@ button { font: inherit; }
 .title-row select { flex: 1; background: var(--panel2); color: var(--text); border: 1px solid #2b4fb8; border-radius: 8px; padding: 6px; font: inherit; }
 .chk { display: block; text-align: left; margin-top: 10px; font-size: .88rem; color: var(--muted); cursor: pointer; }
 .title-note { margin-top: 16px; font-size: .78rem; color: var(--muted); line-height: 1.6; }
+
+/* v12：左下角（右下角是演出的倍速、跳過按鈕）音樂 A／B 與靜音（標題畫面、地圖、戰鬥演出都看得到） */
+#audioCtl { position: fixed; left: 10px; bottom: 10px; z-index: 9999; display: flex; gap: 6px; }
+#audioCtl button { background: rgba(15, 23, 42, .85); color: var(--text); border: 1px solid #2b4fb8; border-radius: 8px; padding: 5px 10px; font: inherit; font-size: .85rem; cursor: pointer; }
+#audioCtl button:hover { border-color: var(--cyan); }

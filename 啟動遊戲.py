@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-一鍵啟動《破曉因果之輪》第一大關（v10 地圖物件去影子）
+一鍵啟動《破曉因果之輪》第一大關（v12 音效頭像載入加速）
 為什麼需要它：遊戲要讀取演出播放器的 JSON 與圖片，瀏覽器禁止直接用「雙擊 index.html」(file://) 的方式讀取，
 所以要先在本機開一個小型網頁伺服器。
 v7 的改變：
@@ -19,7 +19,7 @@ import sys
 import threading
 import webbrowser
 
-PORT = 8810
+PORT = 8812
 HERE = os.path.dirname(os.path.abspath(__file__))
 mimetypes.add_type('image/webp', '.webp')   # 舊版 Python 在 Windows 上可能不認得 .webp
 

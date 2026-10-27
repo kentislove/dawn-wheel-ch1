@@ -390,7 +390,13 @@
     electric: o => { const n = o.n || 5, up = o.dir === 'up', T = up ? [0, 0.15, 0.3] : hitTimes(n, 0.6, 31);
       return { len: 1.8, shake: d => d >= 0 && d < 1.5 ? 5 * (1 - d / 1.5) + 2 : 0,
         mech: d => ({ dx: d > 0 && d < 1.5 ? Math.sin(d * 90) * 3 : 0, tint: d > 0 && d < 1.6 && Math.floor(d * 24) % 2 ? ELEC : (d >= 0 && d < 0.05 ? WHITE : null), tk: 0.55 }),
-        under(d, B) { if (up && d > -0.1 && d < 1.2) { const c = this.ctx, g = c.createLinearGradient(0, B.y1, 0, B.y1 - 40); g.addColorStop(0, rgba(ELEC, 0.6)); g.addColorStop(1, rgba(ELEC, 0)); c.fillStyle = g; c.fillRect(B.x0 - 120, B.y1 - 40, B.w + 240, 60); } },
+        // 2026-10-25 開發者：拿掉地面那段白色光幔，改成從畫面頂端到底部的滿屏電光柱（任何場景都適用）
+        under(d, B) { if (up && d > -0.1 && d < 1.2) { const c = this.ctx, k = smooth(-0.1, 0.05, d) * (1 - smooth(0.9, 1.2, d)), fl = 0.8 + 0.2 * Math.sin(d * 60);
+          const cw = B.w * 0.9, g = c.createLinearGradient(B.cx - cw / 2, 0, B.cx + cw / 2, 0);
+          g.addColorStop(0, rgba(ELEC, 0)); g.addColorStop(0.3, rgba(ELEC, 0.35 * k * fl)); g.addColorStop(0.5, rgba(WHITE, 0.55 * k * fl)); g.addColorStop(0.7, rgba(ELEC, 0.35 * k * fl)); g.addColorStop(1, rgba(ELEC, 0));
+          c.save(); c.globalCompositeOperation = 'lighter'; c.fillStyle = g; c.fillRect(B.cx - cw / 2, 0, cw, H); c.restore();
+          for (let i = 0; i < 4; i++) { const r = rng(3300 + i), x = B.cx + (r() - 0.5) * cw * 0.7;   // 由上而下的直立電光
+            this._bolt(x, -20, x + (r() - 0.5) * 40, H + 20, 3310 + i + Math.floor(d * 20) * 11, i % 2 ? ELEC : WHITE, 0.9 * k, 2 + 2 * r(), 14, 30); } } },
         over(d, B, fi) { const r = rng(32);
           if (!up) T.forEach((ti, i) => { const x = B.x0 + B.w * (0.2 + 0.6 * r()), a = d - ti; if (a < -0.4 || a > 0.4) return;
             const y = a < 0 ? lerp(-60, B.y0 + B.h * 0.2, smooth(-0.4, 0, a)) : B.y0 + B.h * 0.2;

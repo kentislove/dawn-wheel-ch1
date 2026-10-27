@@ -21,6 +21,7 @@
 (function (global) {
   'use strict';
   const W = 1280, H = 720, GROUND = 620;
+  const ENEMY_UP = 1.1;   // 2026-10-27 開發者：敵機至少比我方大 120% → 敵機在受擊／反應畫面放大 10%（我方另外縮 10%，見 _comboK）
   const CYAN = [56, 189, 248], ICE = [200, 245, 255], WHITE = [255, 255, 255];
   const ORANGE = [255, 140, 40], YELLOW = [255, 220, 115], RED = [255, 60, 50];
 
@@ -125,6 +126,16 @@
       if (/^AURORA_/.test(this.move.id || move) && (!targetReact || targetReact === 'DAMAGE'))
         await Promise.all(['S_au01_blade', 'S_au01_pierce', 'S_au02_slash', 'S_au02_xspark', 'S_au03_rift', 'S_au03_shards', 'S_au04_tracer', 'S_au04_hole', 'S_au05_beam', 'S_au05_burst', 'S_au06_orb', 'S_au06_flash', 'S_au07_missile', 'S_au08_plasma']
           .map(async k => { try { this.auVfx[k] = await loadImg(`${b}assets/vfx/${k}/frame_001.png`); } catch (e) {} }));
+      // 2026-10-25 圖片區轟天巨神命中特效 13 張（14 鑽頭維持原樣）
+      if (/^TITAN_/.test(this.move.id || move) && (!targetReact || targetReact === 'DAMAGE'))
+        await Promise.all(['S_ti10_fist', 'S_ti10_dent', 'S_ti11_wheel', 'S_ti11_lava', 'S_ti12_horn', 'S_ti13_rocket', 'S_ti15_tornado', 'S_ti15_smoke', 'S_ti16_ray', 'S_ti16_melt', 'S_ti17_ice', 'S_ti17_shard', 'S_ti18_boom', 'S_ti14_spiral', 'S_ti14_entry', 'S_ti14_exit']
+          .map(async k => { try { this.auVfx[k] = await loadImg(`${b}assets/vfx/${k}/frame_001.png`); } catch (e) {} }));
+      // 爆炸素材（共用 S_boom 4 階段），轟天 10／13 的擊中改用它
+      if (/^TITAN_/.test(this.move.id || move)) { this.boomSpr = [];
+        try { this.boomSpr = await Promise.all([1, 2, 3, 4].map(n => loadImg(`${b}assets/vfx/S_boom/frame_00${n}.png`))); } catch (e) { this.boomSpr = []; } }
+      if (/^HIBARI_/.test(this.move.id || move) && (!targetReact || targetReact === 'DAMAGE'))
+        await Promise.all(['S_hb01_fist', 'S_hb02_palm', 'S_hb03_arc', 'S_hb04_fire', 'S_hb05_rise', 'S_hb06_wave', 'S_hb07_burst']
+          .map(async k => { try { this.auVfx[k] = await loadImg(`${b}assets/vfx/${k}/frame_001.png`); } catch (e) {} }));
       this.enVfx = {};
       if (targetReact === 'DEFEND' || targetReact === 'EVADE')
         await Promise.all(['S_en_aura', 'S_en_ripple', 'S_en_trail', 'S_en_miss'].map(async k => { try { this.enVfx[k] = await loadImg(`${b}assets/vfx/${k}/frame_001.png`); } catch (e) {} }));
@@ -144,6 +155,13 @@
       this.haloImg = null;
       if ((this.move.action && this.move.action.halo) || this.move.entry_halo) { const Hd = this.move.action.halo || { dir: 'assets/units/HIBARI_halo' }, L = {};
         await Promise.all(['outer', 'inner', 'feathers', 'ripple'].map(async k => { L[k] = await loadImg(`${b}${Hd.dir}/${k}.png`); })); this.haloImg = L; }
+      this.cleanHold = null;   // 天驚拳鳳凰飛出後停住的乾淨出拳格（hit_styles 的 clean）
+      { const hs2 = this.hitStyles[this.move.id] || this.hitStyles[move]; if (hs2 && hs2.clean) { try { this.cleanHold = await loadImg(b + hs2.clean); } catch (e) {} }
+        this.phxFrames = null;   // 2026-10-27 獨立鳳凰拍翅分格（圖片區畫，6 格循環）
+        if (hs2 && hs2.phx) { try { this.phxFrames = await Promise.all(hs2.phx.map(f => loadImg(b + f))); } catch (e) {} } }
+      this.afterSeq = null;
+      if (this.move.after_action) { const F = this.move.after_action.frames, pad = n => String(n).padStart(F.digits || 3, '0');
+        this.afterSeq = await Promise.all(Array.from({ length: F.count }, (_, i) => loadImg(`${b}${F.dir}/${F.prefix || 'frame_'}${pad(i + 1)}.png`))); }
       const SA = this.move.action;
       if (SA && SA.type === 'sprite_seq') {
         const F = SA.frames, pad = n => String(n).padStart(F.digits || 3, '0');
@@ -224,6 +242,7 @@
       else if (t < S.action[1]) this._action(t);
       else if (t < S.cutin_end[0]) this._black();
       else if (t < S.cutin_end[1]) this._cutin(this.img.cutinEnd, S.cutin_end, t, -1);
+      else if (S.after && t >= S.after[0]) this._after(t);   // 2026-10-25：受擊後再接一段（雲雀 09 涅槃重生）
       else this._hit(t);
       c.restore();
       // 段落交界白閃
@@ -348,7 +367,7 @@
       if (kk > 0.05) { this._line(ex - 70 * kk, ey, ex + 70 * kk, ey, FLASH, 1.2 * kk, 2); this._line(ex, ey - 32 * kk, ex, ey + 32 * kk, FLASH, 1.2 * kk, 2); }
       const back = this.move.entry_thruster || this.attacker.stand_thruster, bx = fx + (back[0] - img.width / 2) * sc, by = fy + (back[1] - img.height / 2) * sc;
       const tr = 1 - 0.6 * smooth(0.6, 1.0, t);
-      this._line(bx, by, bx - 260 * tr, by + 10, JET, 0.9 * tr, 10); this._glow(bx, by, 22, JET, 0.8);
+      this._glow(bx, by, 22, JET, 0.8 * tr);   // 2026-10-25 開發者：進場不要那一束橫向光芒（原本的推進器尾焰線已拿掉）
       this._speedLines(t, 1 - smooth(0.6, 0.9, t), 11);
     }
 
@@ -376,6 +395,12 @@
       if (A.type === 'melee_dash_slash') return this._actMeleeDashSlash(t, A);
       if (A.type === 'melee_rig_slash') return this._actMeleeRigSlash(t, A);
       if (A.type === 'sprite_seq') return this._actSpriteSeq(t, A);
+    }
+
+    // 受擊段之後的尾段：借用動作段的畫法，換成尾段序列與時間
+    _after(t) {
+      const S = this.move.segments, keep = this.seq; this.seq = this.afterSeq;
+      this._actSpriteSeq(t - S.after[0] + S.action[0], this.move.after_action); this.seq = keep;
     }
 
     // ── v2.3 逐格序列：地形背景照常捲動，機體畫面直接換成透明 PNG（24 fps，一拍一／一拍二已在圖裡排好） ──
@@ -613,7 +638,7 @@
       let img = null;
       if (seq) img = seq[clamp(Math.floor((lt + (K === 'EVADE' ? 0.2 : 0.3)) * 24), 0, seq.length - 1)];
       else if (this.targetSeq) img = this.targetSeq[0];
-      const s = img ? Math.min((box[1] * 1.55) / img.height, 700 / img.width) : 1;   // 反應序列是整張 16:9 畫面，寬的機體（獵犬、戰機）用寬度限制
+      const s = (img ? Math.min((box[1] * 1.55) / img.height, 700 / img.width) : 1) * ENEMY_UP;   // 反應序列是整張 16:9 畫面，寬的機體（獵犬、戰機）用寬度限制
       // 我方攻擊從左邊飛來（共用：一道青白光束）
       const beamEnd = K === 'EVADE' ? W + 100 : cx - box[0] * 0.75;
       if (lt > T - 0.25 && lt < T + 0.5) { const k = smooth(T - 0.25, T - 0.1, lt) * (1 - smooth(T + 0.2, T + 0.5, lt));
@@ -711,7 +736,7 @@
       const box = tg.box;  // 受擊判定框：[寬, 高]，相對中心
       if (this.targetSeq) {
         const HS = tg.hit_seq, img = this.targetSeq[clamp(Math.floor(lt * (HS.fps || 24)), 0, this.targetSeq.length - 1)];
-        const s = HS.scale || (box[1] * 1.3 / img.height);
+        const s = (HS.scale || (box[1] * 1.3 / img.height)) * ENEMY_UP;
         const vanish = this.dmg >= 5 && Hd.finale ? 1 - clamp((lt - Hd.finale - 0.3) / 0.5, 0, 1) : 1;   // 等級 5：在火球中消失
         const burn = clamp(0.12 * this.dmg * clamp((lt - 0.2) / 1.5, 0, 1), 0, 0.55);                     // 裝甲燒焦變暗
         if (vanish > 0) this._sprite(img, cx, cy, s, -Math.min(6, kb * 0.05), vanish, flash ? WHITE : (red ? RED : [25, 15, 10]), flash ? 0.3 : (red ? red * 0.5 : burn));   // 序列本身已有受擊火花，閃白／閃紅只輕輕帶過
@@ -753,7 +778,7 @@
       const lt = t - this.move.segments.hit[0], tg = this.target, box = tg.box;
       this._bg(900 - 25 * lt, 1.0);
       const img = this._enemyImg(lt);
-      const s = img ? ((tg.hit_seq && tg.hit_seq.scale) || (this.targetSeq ? box[1] * 1.3 / img.height : (tg.scale || 1))) : 1;
+      const s = (img ? ((tg.hit_seq && tg.hit_seq.scale) || (this.targetSeq ? box[1] * 1.3 / img.height : (tg.scale || 1))) : 1) * ENEMY_UP;
       const T = S.t || 0.3;
       const push = (S.push || 0) * (1 - Math.exp(-Math.max(0, lt - T) * 6));
       const cx = 860 + push, cy = 380 + 4 * Math.sin(lt * 4);
@@ -770,6 +795,7 @@
     _hsCombo(E, S) {
       const { lt, img, s, box } = E, c = this.ctx, fps = S.fps || 30, [a, b] = S.range || [1, this.comboSeq.length], lead = S.lead || 0.15;
       const hitT = (S.hits || []).map(f => lead + (f - a) / fps), last = hitT.length ? hitT[hitT.length - 1] : lead;
+      const mv = (this.move.id || '').replace(/^HIBARI_G?F?/, '').slice(0, 2);   // 01～08（完全體 F01～F06 用同一套）
       const fi = clamp(a - 1 + Math.floor(Math.max(0, lt - lead) * fps), a - 1, b - 1), H = this.comboSeq[fi];
       // 敵機位置：每一下輕微後退，最後一擊依 finish 飛走
       let ex = 860, ey = 380 + 4 * Math.sin(lt * 4), rot = 0, ealpha = 1;
@@ -784,14 +810,24 @@
       const flash = hitT.some(ht => lt >= ht && lt < ht + 0.05);
       const red = hitT.some(ht => lt >= ht + 0.05 && lt < ht + 0.25);
       // 雲雀：拳頭位置（reach，序列畫面座標）對準敵機左緣
-      const k = S.scale || 0.78, reach = S.reach || [950, 300], tgtX = 860 - box[0] * 0.42, tgtY = 380 - box[1] * 0.1;
+      const k = this._comboK(S, E), reach = S.reach || [950, 300], tgtX = 860 - box[0] * 0.42 * ENEMY_UP, tgtY = 380 - box[1] * 0.1 * ENEMY_UP;
       let hx = tgtX - reach[0] * k, hy = tgtY - reach[1] * k;
       const dash = smooth(0, lead, lt);                       // 進場：從左邊一閃而入（殘影）
       const hx0 = hx - 420 * (1 - dash);
       if (dash < 1) for (let j = 3; j >= 1; j--) { c.save(); c.globalAlpha = 0.25 * j / 3; c.drawImage(H, hx0 - j * 60, hy, H.width * k, H.height * k); c.restore(); }
       // 2026-10-25 開發者：07／08 要先明鏡止水 → 連打時雲雀背後也要有光環（原本只在被拿掉的動作段才有）
       const HA = this.move.action && this.move.action.halo && this.haloImg ? this.move.action.halo : null;
-      const drawH = () => { if (HA) this._moveHalo(HA, fi, lt, hx0, hy, k, false); c.drawImage(H, hx0, hy, H.width * k, H.height * k); if (HA) this._moveHalo(HA, fi, lt, hx0, hy, k, true); };
+      const drawH = () => { if (HA) this._moveHalo(HA, fi, lt, hx0, hy, k, false);
+        if (S.finish === 'phoenix' && lt > last && this.cleanHold) {   // 2026-10-27 開發者選 A：鳳凰飛出後 0.1 秒淡入「圖片區擦掉鳳凰的乾淨出拳格」並停住（手完整、鳳凰整隻消失）
+          const CH = this.cleanHold, u = smooth(0, 0.1, lt - last);
+          if (u < 1) { c.save(); c.globalAlpha = 1 - u; c.drawImage(H, hx0, hy, H.width * k, H.height * k); c.restore(); }
+          c.save(); c.globalAlpha = u; c.drawImage(CH, hx0, hy, CH.width * k, CH.height * k); c.restore();
+        } else if (S.finish === 'phoenix' && lt > last) {   // 還沒有乾淨格的招式：舊做法（拳頭前方淡掉）
+          const cut = tgtX - 10, fa = 1 - smooth(0, 0.15, lt - last);
+          c.save(); c.beginPath(); c.rect(0, 0, cut, 720); c.clip(); c.drawImage(H, hx0, hy, H.width * k, H.height * k); c.restore();
+          if (fa > 0.01) { c.save(); c.globalAlpha = fa; c.beginPath(); c.rect(cut, 0, W - cut, 720); c.clip(); c.drawImage(H, hx0, hy, H.width * k, H.height * k); c.restore(); }
+        } else c.drawImage(H, hx0, hy, H.width * k, H.height * k);
+        if (HA) this._moveHalo(HA, fi, lt, hx0, hy, k, true); };
       if (S.behind) drawH();   // 衝過敵機身旁（03）：雲雀畫在敵機後面
       if (!(S.finish === 'up' && dl > 0.6) && !((S.finish === 'off' || S.finish === 'boom') && dl > 0.5))
         this._drawEnemy(img, s, ex, ey, rot, ealpha, flash ? WHITE : (red ? RED : null), flash ? 0.6 : 0.35);
@@ -803,24 +839,72 @@
         this._glow(P[0], py, big ? 60 : 34, YELLOW, (big ? 1.6 : 1.1) * Math.exp(-d * 8));
         c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgba(WHITE, Math.max(0, 1 - d / 0.2)); c.lineWidth = 4;
         c.beginPath(); c.ellipse(P[0], py, 20 + d * (big ? 700 : 380), 12 + d * (big ? 400 : 220), 0, 0, Math.PI * 2); c.stroke(); c.restore();
-        this._sparks(P[0], py, d, big ? 40 : 18, 3000 + i, 0, 1.4, big ? 900 : 600, i % 2 ? ORANGE : YELLOW); });
+        this._sparks(P[0], py, d, big ? 40 : 18, 3000 + i, 0, 1.4, big ? 900 : 600, i % 2 ? ORANGE : YELLOW);
+        this._hbHit(mv, i, hitT.length, P[0], py, d, big, E); });
       // 收尾特效
       if (dl > 0) {
         if (S.finish === 'up') {   // 昇龍：沖天火柱＋旋轉火焰
           const f = 1 - smooth(0.9, 1.4, dl);
+          this._au('S_hb05_rise', P[0] + 50 + 40 * dl, P[1] + 160, 260 * (0.8 + 0.4 * smooth(0, 0.3, dl)), { ay: 1, h: 760 * smooth(0, 0.25, dl), rot: 0.12, alpha: 0.85 * f, blend: 'lighter' });   // 上升氣流：微微往右上斜，跟著敵機飛走的方向
           for (let i = 0; i < 30; i++) { const r = rng(3100 + i), u = (dl * 2 + r()) % 1, yy = lerp(P[1] + 120, -100, u), xx = P[0] + 40 + Math.sin(u * 12 + i) * 60;
             this._glow(xx, yy, 18 + 18 * r(), i % 2 ? ORANGE : YELLOW, 0.6 * f * (1 - u)); }
           this._line(P[0] + 40, P[1] + 140, P[0] + 60, -60, ORANGE, 0.9 * f, 26);
         }
         if (S.finish === 'boom' && dl > 0.35) this._explosion(Math.min(W - 60, ex), ey, dl - 0.35, 2.0, 3200, ORANGE);
         if ((S.finish === 'off' || S.finish === 'boom') && dl < 0.6) this._speedLines(lt, 1 - dl / 0.6, 41, -1);
-        if (S.finish === 'phoenix') {   // 鳳凰飛撲：火鳥從雲雀飛向敵機 → 全屏爆炸
+        if (S.finish === 'phoenix' && this.phxFrames) {   // 2026-10-27 獨立鳳凰：衝擊光環（程式畫，不會被切）→ 鳳凰拍翅從拳頭衝出、飛穿敵機 → 全屏爆炸
+          for (let i = 0; i < 3; i++) { const a = dl - i * 0.07; if (a < 0 || a > 0.5) continue;   // 側面看的直立窄橢圓
+            c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgba(i % 2 ? YELLOW : WHITE, 0.9 * (1 - a / 0.5)); c.lineWidth = 10 * (1 - a / 0.5);
+            c.beginPath(); c.ellipse(P[0], P[1], 14 + 150 * a, 40 + 560 * a, 0, 0, Math.PI * 2); c.stroke(); c.restore(); }
+          if (dl < 0.25) this._glow(P[0], P[1], 90, YELLOW, 1.4 * (1 - dl / 0.25));
+          const PF = this.phxFrames, T1 = 0.55;
+          if (dl < T1 + 0.1) { const f = PF[Math.floor(dl * 18) % PF.length], g = smooth(0, 0.12, dl), u = smooth(0.1, T1, dl),
+              w = 700 * (0.35 + 0.65 * g), h = w * f.height / f.width, x = lerp(P[0] + 40, ex + 260, u), y = lerp(P[1] - 20, ey - 60, u),
+              al = Math.min(smooth(0, 0.05, dl), 1 - smooth(T1 - 0.05, T1 + 0.1, dl));
+            for (let i = 0; i < 26; i++) { const r = rng(3400 + i), a = (dl * 2.5 + r()) % 1, tx = x - w * 0.3 - 500 * a * r(), ty = y + (r() - 0.5) * h * 0.5 + 60 * a;   // 火焰拖尾
+              this._glow(tx, ty, 14 + 16 * r(), i % 3 ? ORANGE : YELLOW, 0.8 * al * (1 - a)); }
+            c.save(); c.globalCompositeOperation = 'lighter';
+            for (let j = 3; j >= 1; j--) { c.globalAlpha = 0.18 * al * (4 - j) / 3; c.drawImage(f, x - w / 2 - j * 70, y - h / 2 + j * 6, w, h); }   // 殘影
+            c.restore(); c.save(); c.globalAlpha = al; c.drawImage(f, x - w / 2, y - h / 2, w, h); c.restore(); }
+          if (dl > 0.4) { const d2 = dl - 0.4; this._explosion(ex, ey, d2, 3.0, 3300, ORANGE); this._explosion(ex - 150, ey + 60, d2 - 0.08, 2.0, 3301, ORANGE); this._explosion(ex + 120, ey - 80, d2 - 0.15, 2.0, 3302, ORANGE);
+            if (d2 < 0.5) { c.fillStyle = rgba([255, 230, 170], 0.9 * (1 - d2 / 0.5)); c.fillRect(0, 0, W, H); } }
+        } else if (S.finish === 'phoenix') {   // 鳳凰飛撲：火鳥從雲雀飛向敵機 → 全屏爆炸
           const ph = this.img.hitSprite, u = smooth(0, 0.35, dl);
           if (ph && dl < 0.4) { const w = 420, x = lerp(hx + H.width * k * 0.6, ex, u), y = lerp(hy + H.height * k * 0.35, ey, u);
             for (let j = 3; j >= 0; j--) { c.save(); c.globalAlpha = j ? 0.25 : 1; c.globalCompositeOperation = 'lighter'; c.drawImage(ph, x - w / 2 - j * 50, y - w * ph.height / ph.width / 2, w, w * ph.height / ph.width); c.restore(); } }
           if (dl > 0.35) { const d2 = dl - 0.35; this._explosion(ex, ey, d2, 3.0, 3300, ORANGE); this._explosion(ex - 150, ey + 60, d2 - 0.08, 2.0, 3301, ORANGE); this._explosion(ex + 120, ey - 80, d2 - 0.15, 2.0, 3302, ORANGE);
             if (d2 < 0.5) { c.fillStyle = rgba([255, 230, 170], 0.9 * (1 - d2 / 0.5)); c.fillRect(0, 0, W, H); } }
         }
+      }
+    }
+
+    // 2026-10-27 開發者：敵機至少比我方大 120%（看長邊：扁平敵機用寬度）。雲雀預設比原本 0.78 再縮 10%，還不夠就再縮
+    _comboK(S, E) {
+      const tg = this.target, base = (S.scale || 0.78) * 0.9;
+      if (!S.body_h || !tg.vis || !E.img) return base;
+      const ss = tg.stand_size || [1, 1], eLong = tg.vis[1] * E.s * Math.max(1, ss[0] / ss[1]);
+      return Math.min(base, eLong / 1.2 / S.body_h);
+    }
+
+    // 雲雀每一擊的命中素材（依出招方向擺）：x,y＝命中點，d＝命中後經過秒數，n＝總擊數
+    _hbHit(mv, i, n, x, y, d, big, E) {
+      if (d < 0 || d > 0.6) return; const c = this.ctx, fade = 1 - smooth(0.12, 0.45, d), pop = 0.75 + 0.35 * smooth(0, 0.08, d);
+      if (mv === '01') {          // 雀步連環拳：左右直拳略帶上下角度，最後一下上勾拳往上斜
+        const rot = big ? -0.75 : (i % 2 ? -0.16 : 0.12);
+        this._au('S_hb01_fist', x + 10, y, (big ? 300 : 210) * pop, { ax: 0.82, rot, alpha: 0.3 * fade });   // 2026-10-25 開發者：拳影淡化到 30%   // 2026-10-25 機械拳（實心，不用發光疊加）
+      } else if (mv === '02') {   // 鷹爪擒拿：掌印貼在敵機正面（側面看壓扁），只畫在機體上
+        const { img, s } = E; this._onEnemy(img, s, E.cx, E.cy, () => { const g = this.ctx; g.save(); g.translate(x + 6, y); g.rotate(-0.25 + i * 0.25); g.scale(0.45, 1);
+          this._au('S_hb02_palm', 0, 0, 210 * pop, { alpha: fade }); g.restore(); });   // 2026-10-25 機械掌
+      } else if (mv === '03') {   // 白鶴亮翅踢：弧光沿著左右輪流的踢腿弧線
+        const rot = i % 2 ? Math.PI * 0.85 : -0.35;
+        this._au('S_hb03_arc', x - 20, y - 10, (big ? 380 : 300) * pop, { rot, alpha: fade, blend: 'lighter' });
+      } else if (mv === '05') {   // 雲雀鑽天掌：旋轉連擊，小弧光往上捲
+        this._au('S_hb03_arc', x - 10, y, 220 * pop, { rot: -1.1 - i * 0.5, alpha: 0.8 * fade, blend: 'lighter' });
+      } else if (mv === '06') {   // 隼落鐵山靠：衝擊波對準肩膀撞擊方向（往右），側面看壓扁
+        c.save(); c.translate(x, y); c.rotate(Math.PI / 2); c.scale(1, 0.6);
+        this._au('S_hb06_wave', 0, 0, (300 + 500 * d), { ay: 0.9, alpha: 1 - smooth(0.2, 0.6, d), blend: 'lighter' }); c.restore();
+      } else if (mv === '07') {   // 朱雀神掌：貼身一掌的爆光，旋轉擴散
+        this._au('S_hb07_burst', x + 20, y, (280 + 600 * d), { rot: d * 2, alpha: 1 - smooth(0.25, 0.6, d), blend: 'lighter' });
       }
     }
 
@@ -842,6 +926,18 @@
       const c = this.ctx, h = o.h || w * im.height / im.width;
       c.save(); c.globalAlpha = o.alpha == null ? 1 : o.alpha; if (o.blend) c.globalCompositeOperation = o.blend; c.translate(x, y); if (o.rot) c.rotate(o.rot);
       c.drawImage(im, -w * (o.ax == null ? 0.5 : o.ax), -h * (o.ay == null ? 0.5 : o.ay), w, h); c.restore(); return true; }
+    // 素材爆炸：S_boom 4 張依序播（每張 0.11 秒），最後一張煙慢慢上飄淡出
+    _boomAt(x, y, a, size) {
+      const F = this.boomSpr; if (!F || F.length < 4 || a < 0 || a > 1.0) return false;
+      const i = Math.min(3, Math.floor(a / 0.11)), im = F[i], k = size / Math.max(im.width, im.height) * (0.8 + 0.4 * Math.min(1, a / 0.2));
+      const c = this.ctx; c.save(); c.globalAlpha = i < 3 ? 1 : 1 - smooth(0.4, 1.0, a);
+      c.drawImage(im, x - im.width * k / 2, y - im.height * k / 2 - (i === 3 ? 60 * (a - 0.33) : 0), im.width * k, im.height * k); c.restore(); return true;
+    }
+    // 只畫在敵機身上：畫在暫存畫布，再用敵機圖當遮罩（破口、燒痕要貼著機體表面）
+    _onEnemy(img, s, x, y, draw) { if (!img) { draw(this.ctx); return; }
+      const cv = this._oeCv || (this._oeCv = document.createElement('canvas')); cv.width = W; cv.height = H; const g = cv.getContext('2d'), main = this.ctx;
+      g.clearRect(0, 0, W, H); this.ctx = g; draw(g); g.globalCompositeOperation = 'destination-in'; g.drawImage(img, x - img.width * s / 2, y - img.height * s / 2, img.width * s, img.height * s); g.globalCompositeOperation = 'source-over';
+      this.ctx = main; main.drawImage(cv, 0, 0); }
     _hsPierce(E, S) {
       const { lt, T, img, s, cx, cy, box } = E, c = this.ctx;
       const P = [cx - box[0] * 0.04, cy - box[1] * 0.06];
@@ -938,7 +1034,7 @@
           c.lineTo(cx + Math.cos(am) * 2400, cy + Math.sin(am) * 2400); c.lineTo(cx + Math.cos(a1) * 2000, cy + Math.sin(a1) * 2000); c.closePath();
           c.save(); c.clip(); this._drawEnemy(img, s, cx, cy, 0, 1 - smooth(2.4, 2.9, lt) * 0.6, [30, 10, 50], clamp(0.2 * d, 0, 0.4)); c.restore();
           const ek = Math.exp(-d * 1.2);
-          this._line(cx, cy, cx + Math.cos(a0) * box[1] * 0.7, cy + Math.sin(a0) * box[1] * 0.7, PURPLE, 0.9 * ek, 5);
+          if (!(this.auVfx && this.auVfx.S_au03_rift)) this._line(cx, cy, cx + Math.cos(a0) * box[1] * 0.7, cy + Math.sin(a0) * box[1] * 0.7, PURPLE, 0.9 * ek, 5);
           c.restore();
         }
         for (let i = 0; i < 30; i++) { const rr = rng(880 + i), a = rr() * Math.PI * 2, sp = 80 + 260 * rr();
@@ -953,8 +1049,9 @@
         const a = ang * Math.PI / 180, L = box[1] * 1.0, ox = -Math.sin(a) * off * box[0], oy = Math.cos(a) * off * box[0] * 0.5;
         const x0 = cx + ox - Math.cos(a) * L, y0 = cy + oy - Math.sin(a) * L, x1 = cx + ox + Math.cos(a) * L, y1 = cy + oy + Math.sin(a) * L;
         const fresh = Math.exp(-(lt - ti) * 6), keep = lt < SH ? 0.8 : 0.8 * Math.exp(-(lt - SH) * 1.5);
-        this._slashLine(x0, y0, x1, y1, fresh, ICE, 16);
-        this._line(x0, y0, x1, y1, PURPLE, keep, 6); this._line(x0, y0, x1, y1, [20, 0, 40], keep, 2);
+        if (!(this.auVfx && this.auVfx.S_au03_rift)) { this._slashLine(x0, y0, x1, y1, fresh, ICE, 16);   // 2026-10-25 開發者：不要分割線，改用素材
+          this._line(x0, y0, x1, y1, PURPLE, keep, 6); this._line(x0, y0, x1, y1, [20, 0, 40], keep, 2); }
+        else this._au('S_au03_rift', (x0 + x1) / 2, (y0 + y1) / 2, L * 1.1, { rot: a, h: 90, alpha: fresh * 0.9, blend: 'lighter' });   // 每一斬：一道次元裂縫素材閃過
       });
       if (lt >= SH && lt < SH + 0.1) { c.fillStyle = rgba(WHITE, 0.7 * (1 - (lt - SH) / 0.1)); c.fillRect(0, 0, W, H); }
     }
@@ -997,7 +1094,7 @@
       const P = [cx + (S.px || -0.05) * box[0], cy + (S.py || -0.12) * box[1]];
       // ── 敵機位置：被炸飛（erupt）、被撞退（ram）、震動
       let ex = cx, ey = cy, rot = 0;
-      if (k === 'erupt' && d > 0) { const u = clamp(d / 1.6, 0, 1); ey = cy - 380 * Math.sin(Math.PI * Math.min(1, u * 1.1)) * (1 - 0.35 * u); rot = -25 * u; ex = cx + 60 * u; }
+      if (k === 'erupt' && d > 0) { const u = Math.max(0, d - 0.12); ey = cy - (500 * u + 1500 * u * u); rot = -30 * Math.min(1, u); ex = cx + 40 * Math.min(1, u); }   // 2026-10-25：岩漿柱把敵機直接頂出畫面
       if (k === 'ram' && d > 0) ex = cx + 220 * (1 - Math.exp(-d * 4));
       if (d > 0 && d < 0.6) ex += Math.sin(lt * 90) * 7 * Math.exp(-d * 5);
       if ((k === 'multi' || k === 'gold') && d > -0.2) ex += Math.sin(lt * 70) * 4;
@@ -1006,10 +1103,11 @@
       if (k === 'flame' && d > 0) { tint = [200, 50, 10]; tk = 0.2 + 0.3 * smooth(0, 1, d) + 0.08 * Math.sin(lt * 30); }
       else if (k === 'freeze' && d > 0) { tint = [120, 190, 235]; tk = 0.55 * smooth(0, 0.5, d); }
       else if (k === 'tornado' && d > 0) { tint = [50, 140, 40]; tk = 0.5 * smooth(0, 1, d); }
+      else if (k === 'phoenix' && d > 0) { tint = [255, 110, 30]; tk = 0.25 + 0.25 * smooth(0, 0.6, d) + 0.08 * Math.sin(lt * 30); }
       else if (k === 'gold' && d > 0) { tint = [255, 220, 120]; tk = 0.35 + 0.15 * Math.sin(lt * 25); }
       if (d >= 0 && d < 0.05) { tint = WHITE; tk = 0.6; }
       const shatter = k === 'freeze' ? smooth(2.15, 2.2, d) : 0;
-      const vanish = k === 'gold' ? 1 - smooth(1.9, 2.4, lt) : 1;
+      const vanish = k === 'gold' ? 1 - smooth(2.3, 2.4, lt) : 1;   // 2026-10-25 開發者：框框的過渡降到 0.1 秒
       // 龍捲：後半圈雲霧畫在敵機後面
       if (k === 'tornado') this._tornado(E, d, ex, -1);
       if (vanish > 0.01 && shatter < 1 && k !== 'freeze') { c.save(); c.translate(ex, ey); c.rotate(rot * Math.PI / 180); c.translate(-ex, -ey);
@@ -1022,19 +1120,23 @@
         const pts = Array.from({ length: N }, () => [cx + (r() - 0.5) * box[0] * 0.7, cy + (r() - 0.65) * box[1] * 0.75]);
         pts.forEach((p, i) => { const a = lt - (t0 + i * step); if (a < 0) return; const q = at(p[0], p[1]);
           this._crater(q[0], q[1], a, 30, 3200 + i);
+          this._au('S_ti10_dent', q[0], q[1], 70, { rot: i * 0.9, alpha: smooth(0, 0.05, a) });
+          if (!this._boomAt(q[0], q[1], a, 230) && a < 0.4) this._au('S_ti10_fist', q[0] - 20, q[1], 160 + 260 * a, { alpha: 1 - a / 0.4 });   // 2026-10-25：改用爆炸素材
           this._explosion(q[0], q[1], a, 0.85, 3300 + i, ORANGE);
           if (a < 0.35) { c.save(); c.strokeStyle = rgba(WHITE, 0.9 * (1 - a / 0.35)); c.lineWidth = 6 * (1 - a / 0.35);
-            c.beginPath(); c.ellipse(q[0], q[1], 30 + 380 * a, 22 + 260 * a, 0, 0, Math.PI * 2); c.stroke(); c.restore(); }
+            c.beginPath(); c.ellipse(q[0], q[1], 12 + 120 * a, 30 + 380 * a, 0, 0, Math.PI * 2); c.stroke(); c.restore(); }   // B3：側面看的衝擊環
           if (a < 0.05) { c.fillStyle = rgba(WHITE, 0.35); c.fillRect(0, 0, W, H); } });
         const fa = lt - (t0 + N * step + 0.3); if (fa > 0) { const q = at(cx, cy); this._explosion(q[0], q[1], fa, 2.2, 3400, ORANGE); this._explosion(q[0] - 40, q[1] + 40, fa - 0.15, 1.6, 3401, ORANGE); }
       }
 
       else if (k === 'punch') {                   // ④ 火箭鐵拳：單一大擊破點
+        if (d > -0.35 && d < 0.06) { const q0 = at(P[0], P[1]); this._au('S_ti13_rocket', lerp(-200, q0[0] + 40, smooth(-0.35, 0, d)), q0[1], 300, { ax: 0.85 }); }
         if (d < 0) return; const q = at(P[0], P[1]);
-        this._crater(q[0], q[1], d, 46, 321);
+        if (!(this.boomSpr && this.boomSpr.length)) this._crater(q[0], q[1], d, 46, 321);
+        this._boomAt(q[0], q[1], d, 380);   // 2026-10-25 開發者：凹痕太假 → 移除，改爆炸素材
         for (let i = 0; i < 3; i++) { const a = d - i * 0.08; if (a < 0 || a > 0.6) continue;
           c.save(); c.strokeStyle = rgba(WHITE, 0.9 * (1 - a / 0.6)); c.lineWidth = 8 * (1 - a / 0.6);
-          c.beginPath(); c.ellipse(q[0], q[1], 40 + 700 * a, 30 + 420 * a, 0, 0, Math.PI * 2); c.stroke(); c.restore(); }
+          c.beginPath(); c.ellipse(q[0], q[1], 16 + 230 * a, 40 + 700 * a, 0, 0, Math.PI * 2); c.stroke(); c.restore(); }   // B3：側面看的衝擊環
         this._sparks(q[0], q[1], d, 40, 330, 0, 2.6, 900);
         if (d > 1.2) this._explosion(q[0], q[1], d - 1.2, 2.0, 340, ORANGE);
         if (d < 0.08) { c.fillStyle = rgba(WHITE, 0.7); c.fillRect(0, 0, W, H); }
@@ -1042,26 +1144,28 @@
 
       else if (k === 'erupt') {                   // ② 大車輪：地面爆破往上衝，敵機被炸飛
         const gy = cy + box[1] * 0.62;
-        for (let i = 0; i < 7; i++) { const r = rng(3500 + i), x = cx + (i - 3) * box[0] * 0.22 + (r() - 0.5) * 30, a = d - i * 0.05;
+        if (d > -0.5 && d < 0.35) { const u = smooth(-0.5, 0.05, d), wx = lerp(-200, cx - box[0] * 0.2, u), wr = 300;   // 火焰車輪滾進來
+          this._au('S_ti11_wheel', wx, gy - wr * 0.42, wr, { rot: lt * 14, alpha: 1 - smooth(0.15, 0.35, d), blend: 'lighter' }); }
+        for (let i = 3; i < 4; i++) { const r = rng(3500 + i), x = cx, a = d;   // 2026-10-25 開發者：只要一條
           if (a < 0) continue;
           // 爆破火柱往上衝
-          if (a < 0.9) { const hgt = (260 + 220 * r()) * smooth(0, 0.25, a), w = 70 + 40 * r(), f = 1 - smooth(0.4, 0.9, a);
-            c.save(); c.globalCompositeOperation = 'lighter';
+          if (a < 1.3) { const hgt = 2 * (520 + 120 * r()) * smooth(0, 0.25, a), w = 2 * (110 + 40 * r()), f = 1 - smooth(0.9, 1.3, a);   // 放大 200%
+            if (!(this.auVfx && this.auVfx.S_ti11_lava)) { c.save(); c.globalCompositeOperation = 'lighter';   // 有岩漿柱素材就不畫程式火柱（2026-10-25：黃色梯形太突兀）
             const gr = c.createLinearGradient(0, gy, 0, gy - hgt); gr.addColorStop(0, rgba(YELLOW, 0.95 * f)); gr.addColorStop(0.5, rgba(FIRE, 0.7 * f)); gr.addColorStop(1, rgba(RED, 0));
             c.fillStyle = gr; c.beginPath(); c.moveTo(x - w / 2, gy); c.quadraticCurveTo(x - w * 0.2, gy - hgt * 0.6, x, gy - hgt); c.quadraticCurveTo(x + w * 0.2, gy - hgt * 0.6, x + w / 2, gy); c.fill(); c.restore(); }
+            this._au('S_ti11_lava', x, gy + 10, w * 1.6 * 1.5, { ay: 1, h: hgt * 1.15 * 1.5, alpha: 0.65 * f }); }   // 2026-10-25：再放大 150%、透明度 65%
           this._explosion(x, gy - 20, a, 1.2, 3600 + i, ORANGE);
           // 碎石往上噴
           for (let j = 0; j < 8; j++) { const rr = rng(3700 + i * 10 + j), vx = (rr() - 0.5) * 300, vy = -(500 + 500 * rr()), px = x + vx * a, py = gy + vy * a + 900 * a * a;
             if (a > 1.4 || py > gy + 10) continue; c.fillStyle = '#4a3a30'; c.fillRect(px - 5, py - 4, 10 + 6 * rr(), 8); } }
         if (d > 0 && d < 0.1) { c.fillStyle = rgba(WHITE, 0.6); c.fillRect(0, 0, W, H); }
-        if (d > 1.7) { const q = at(cx, cy); this._explosion(q[0], q[1], d - 1.7, 2.0, 3800, ORANGE); }
       }
 
       else if (k === 'ram') {                     // ③ 神角衝撞：轟天巨神半透明殘影整台撞上去
         const st = this.img.stand, ss = (this.attacker.stand_scale || 0.86) * 1.15;
         const tx = cx - box[0] * 0.55;                                   // 撞上時的位置
         const u = smooth(-0.45, 0, d), x = lerp(-450, tx, u), y = cy + 10;
-        if (d < 0.25 && st) {
+        if (false && d < 0.25 && st) {   // 2026-10-25 開發者：不要 TITAN 機體虛影
           for (let i = 5; i >= 1; i--) { const uu = smooth(-0.45, 0, d - i * 0.04); this._sprite(st, lerp(-450, tx, uu), y, ss, 0, 0.12 * (6 - i) / 5, GOLD, 0.7); }
           this._sprite(st, x, y, ss, 0, 0.5 * (1 - smooth(0.05, 0.25, d)), GOLD, 0.25);       // 50% 半透明本體
           for (let i = 0; i < 6; i++) this._line(x - 300, y - 120 + i * 50, x - 40, y - 120 + i * 50, GOLD, 0.6 * u, 3);
@@ -1070,12 +1174,21 @@
           c.save(); c.strokeStyle = rgba([255, 240, 160], 0.9); c.lineWidth = 3; c.beginPath(); c.moveTo(hx, hy);
           let lx = hx, ly = hy; for (let i = 0; i < 6; i++) { lx += 20 + r() * 20; ly += (r() - 0.5) * 40; c.lineTo(lx, ly); } c.stroke(); c.restore();
         }
+        if (d > -0.45 && d < 0.3) { const tip = at(P[0] - box[0] * 0.2, P[1]), u2 = smooth(-0.45, 0, d);
+          const hx2 = lerp(-100, tip[0] + 60, u2), hw = 420 * (d > 0 ? 1 + 2 * d : 1), ha = d > 0 ? 1 - d / 0.3 : 1;
+          this._au('S_ti12_horn', hx2, tip[1], hw, { ax: 0.85, alpha: 0.55 * ha, blend: 'lighter' });   // 半透明
+          // 空氣灼燒裂光：沿著衝擊錐表面不斷迸出的鋸齒狀白金裂紋＋熱氣光暈
+          c.save(); c.globalCompositeOperation = 'lighter';
+          for (let i = 0; i < 7; i++) { const r = rng(4400 + i + Math.floor(lt * 24) * 7), x0 = hx2 - hw * (0.15 + 0.7 * r()), side = r() < 0.5 ? -1 : 1, y0 = tip[1] + side * hw * 0.12 * (0.3 + 0.7 * (hx2 - x0) / hw);
+            c.strokeStyle = rgba(i % 2 ? [255, 245, 200] : [255, 190, 90], 0.85 * ha); c.lineWidth = 1.5 + 1.5 * r(); c.beginPath(); c.moveTo(x0, y0);
+            let lx = x0, ly = y0; for (let j = 0; j < 4; j++) { lx -= 18 + 22 * r(); ly += side * (6 + 14 * r()) * (j % 2 ? -0.5 : 1); c.lineTo(lx, ly); } c.stroke(); }
+          c.restore(); this._glow(hx2 - hw * 0.05, tip[1], hw * 0.12, [255, 200, 120], 0.6 * ha); }
         if (d >= 0) { const q = at(P[0] - box[0] * 0.2, P[1]);
           this._explosion(q[0], q[1], d, 2.4, 3950, ORANGE); this._explosion(q[0] + 60, q[1] - 50, d - 0.12, 1.6, 3951, GOLD);
           this._explosion(q[0] + 40, q[1] + 70, d - 0.25, 1.4, 3952, ORANGE);
           for (let i = 0; i < 3; i++) { const a = d - i * 0.07; if (a < 0 || a > 0.6) continue;
             c.save(); c.strokeStyle = rgba(GOLD, 0.9 * (1 - a / 0.6)); c.lineWidth = 10 * (1 - a / 0.6);
-            c.beginPath(); c.ellipse(q[0], q[1], 50 + 800 * a, 40 + 500 * a, 0, 0, Math.PI * 2); c.stroke(); c.restore(); }
+            c.beginPath(); c.ellipse(q[0], q[1], 20 + 270 * a, 50 + 800 * a, 0, 0, Math.PI * 2); c.stroke(); c.restore(); }   // B3：側面看的衝擊環
           if (d < 0.12) { c.fillStyle = rgba(WHITE, 0.8); c.fillRect(0, 0, W, H); } }
       }
 
@@ -1096,26 +1209,36 @@
             c.translate(x - L / 2, y); c.scale(sc, sc * (1 + 0.05 * Math.sin(lt * 70))); c.drawImage(sp, -sp.width / 2, -sp.height / 2); c.restore(); };
           for (let i = 5; i >= 1; i--) drawGhost(tip - i * L * 0.18, 0.08 * (6 - i) * vis);    // 動態殘影（往後拖）
           drawGhost(tip, 0.55 * vis);                                                            // 本體：半透明
+          this._au('S_ti14_spiral', tip + L * 0.15, y, L * 1.5, { ax: 0.97, h: sp.height * sc * 1.1 * (1 + 0.04 * Math.sin(lt * 60)), alpha: 0.85 * vis });   // 2026-10-25：螺旋穿刺光素材
           c.save(); c.globalAlpha = 0.25 * vis; c.translate(tip - L / 2, y); c.scale(sc, sc); c.drawImage(sp, -sp.width / 2, -sp.height / 2); c.restore();   // 一點實色，看得出金屬
           this._glow(tip - L * 0.1, y, sp.height * sc * 0.5, GOLD, 0.45 * vis);
         }
         // 前胸入口：鑽入時火花往回噴，留下洞
         if (d > -0.05) { const g = smooth(0, 0.15, d);
           if (d < 0.6) this._sparks(front, y, (lt * 4) % 0.5, 26, 4000 + Math.floor(lt * 4), Math.PI, 1.8, 760, YELLOW);
-          c.fillStyle = 'rgba(8,5,5,0.9)'; c.beginPath(); c.ellipse(front, y, 22 * g, 28 * g, 0, 0, Math.PI * 2); c.fill();
+          if (!(this.auVfx && this.auVfx.S_ti14_entry) || !(this._onEnemy(img, s, ex, ey, () => { const c2 = this.ctx; c2.save(); c2.translate(front, y); c2.rotate(-0.12); c2.scale(0.42, 1);   // 2026-10-25：貼合機體斜面（側面看壓扁）
+              this._au('S_ti14_entry', 0, 0, 150 * g, { rot: lt * 3 }); c2.restore(); }), true)) { c.fillStyle = 'rgba(8,5,5,0.9)'; c.beginPath(); c.ellipse(front, y, 22 * g, 28 * g, 0, 0, Math.PI * 2); c.fill(); }
           this._glow(front, y, 30, ORANGE, 0.6 + 0.3 * Math.sin(lt * 20)); }
         if (d > 0.35 && d < 0.85) { const q = at(cx, cy); this._glow(q[0], q[1], 60 + 25 * Math.sin(lt * 40), ORANGE, 0.5); }   // 體內鑽動
         // 後背出口：穿出時碎片＋火花往前噴
         if (d > 0.85) { const u = d - 0.85;
-          c.fillStyle = 'rgba(8,5,5,0.92)'; c.beginPath(); c.ellipse(back, y, 26, 32, 0, 0, Math.PI * 2); c.fill();
+          const hasExit = !!(this.auVfx && this.auVfx.S_ti14_exit);
+          if (hasExit) { const ew = 460 * (0.5 + 0.5 * smooth(0, 0.2, u)), ea = 1 - smooth(0.9, 1.4, u);
+            c.save(); c.translate(back - 20, y); c.transform(1, -0.18, 0, 1, 0, 0); this._au('S_ti14_exit', 0, 0, ew, { ax: 0.12, h: ew * 330 / 560 * 0.8, alpha: ea }); c.restore(); }   // 斜切貼合背面
+          if (!hasExit) { c.fillStyle = 'rgba(8,5,5,0.92)'; c.beginPath(); c.ellipse(back, y, 26, 32, 0, 0, Math.PI * 2); c.fill(); }
           this._sparks(back, y, u, 50, 4100, 0, 1.6, 900, YELLOW); this._sparks(back, y, u - 0.1, 30, 4101, 0, 1.2, 700, ORANGE);
           for (let i = 0; i < 14; i++) { const r = rng(4200 + i), px = back + (300 + 500 * r()) * u, py = y + (r() - 0.5) * 400 * u + 300 * u * u;
-            if (u < 1.2) { c.fillStyle = '#3a4252'; c.fillRect(px, py, 8 + 8 * r(), 6); } }
+            if (u < 1.2 && !hasExit) { c.fillStyle = '#3a4252'; c.fillRect(px, py, 8 + 8 * r(), 6); } }
           if (u < 0.07) { c.fillStyle = rgba(WHITE, 0.55); c.fillRect(0, 0, W, H); } }
         if (d > 1.7) { const q = at(cx, cy); this._explosion(q[0], q[1], d - 1.7, 2.0, 4300, ORANGE); }
       }
 
-      else if (k === 'tornado') this._tornado(E, d, ex, 1);
+      else if (k === 'tornado') { this._tornado(E, d, ex, 1);
+        const g = smooth(-0.2, 0.4, d) * (1 - smooth(2.3, 2.8, lt));
+        { let tx = ex, ty = cy; if (img) { const [bx, by] = this._alphaBox(img); tx = ex - img.width * s / 2 + bx * s; ty = cy - img.height * s / 2 + by * s; }   // 以敵機實際位置為中心
+          this._au('S_ti15_tornado', tx + 12 * Math.sin(lt * 3), ty, Math.max(box[0] * 1.5, box[1] * 2.2 * 0.77), { h: box[1] * 2.2, alpha: 0.5 * g, rot: 0.04 * Math.sin(lt * 4) }); }   // 2026-10-25：1.5 倍、50%
+        if (false && d > 0.6) for (let i = 0; i < 4; i++) { const r = rng(4500 + i), u = ((lt * 0.5 + r()) % 1);   // 2026-10-25 開發者：不要裝甲酸化圖案
+          this._au('S_ti15_smoke', ex + (r() - 0.5) * box[0] * 0.7, cy - box[1] * 0.1 - u * 160, 110 + 60 * u, { ay: 1, alpha: 0.8 * (1 - u) * smooth(0.6, 1.0, d) }); } }
 
       else if (k === 'flame') {                   // ⑦ 熔火：火柱沖天、全身猛烈燃燒
         const g = smooth(-0.1, 0.35, d), f = 1 - smooth(2.4, 2.9, lt), q = at(cx, cy);
@@ -1135,9 +1258,38 @@
         for (let i = 0; i < 10; i++) { const r = rng(650 + i), a = (lt * 0.6 + r()) % 1;
           c.fillStyle = rgba([30, 22, 22], 0.4 * (1 - a) * g); c.beginPath(); c.arc(q[0] + (r() - 0.5) * box[0], q[1] - box[1] * 0.7 - a * 260, 40 + 70 * a, 0, Math.PI * 2); c.fill(); }
         if (d > 0 && d < 0.1) { c.fillStyle = rgba([255, 200, 120], 0.3); c.fillRect(0, 0, W, H); }
+        if (this.auVfx && this.auVfx.S_hb04_fire && d > -0.05) {   // 離火焚燒：三團火焰貼著敵機往上燒，微微往右後方飄
+          for (let i = 0; i < 3; i++) { const r = rng(4800 + i), fl = 0.9 + 0.12 * Math.sin(lt * (9 + i * 3) + i);
+            this._au('S_hb04_fire', q[0] + (i - 1) * box[0] * 0.3, q[1] + box[1] * (0.45 - 0.15 * i), box[1] * (0.7 + 0.2 * r()) * fl, { ay: 1, rot: 0.08 + 0.05 * Math.sin(lt * 4 + i), alpha: 0.8 * g * f, blend: 'lighter' }); } }
+        { const kr = smooth(-0.25, -0.05, d) * (1 - smooth(1.0, 1.3, d)), qy = at(cx, P[1])[1];   // 熔火熱線
+          const th = 0.3; this._au('S_ti16_ray', cx + 40, qy, (cx + 120) / Math.cos(th), { ax: 1, rot: th, h: 150 * (0.9 + 0.1 * Math.sin(lt * 35)), alpha: kr, blend: 'lighter' });   // B3：照動作角度往右下斜約 17°
+          // 2026-10-25 開發者第二輪：不要鐵漿流出（燒熔裝甲素材 S_ti16_melt 不再使用）
+        }
       }
 
-      else if (k === 'freeze') this._freezeFX(E, d, ex, ey);
+      else if (k === 'freeze') { this._freezeFX(E, d, ex, ey);
+        const ki = smooth(-0.25, -0.05, d) * (1 - smooth(0.8, 1.1, d));
+        { const th = 0.34, iy = cy - box[1] * 0.05; this._au('S_ti17_ice', cx + 40, iy, (cx + 120) / Math.cos(th), { ax: 1, rot: th, h: 140, alpha: ki, blend: 'lighter' }); }   // B3：照雙眼射出的角度往右下斜約 19°
+        const ds = d - 2.2; if (ds > 0 && ds < 1.4) for (let i = 0; i < 8; i++) { const r = rng(4700 + i), ang = r() * Math.PI * 2, v = 250 + 450 * r();
+          this._au('S_ti17_shard', ex + Math.cos(ang) * v * ds, ey + Math.sin(ang) * v * ds + 300 * ds * ds, 90 + 80 * r(), { rot: ang + ds * 6 * (r() - 0.5), alpha: 1 - smooth(0.9, 1.4, ds) }); } }
+
+      else if (k === 'phoenix') {                 // 雲雀 09 朱雀涅槃拳・鳳凰：火鳥（雲雀化身）從左邊飛撲撞進敵機 → 火焰爆裂、火羽四散、全屏火光
+        const ph = this.img.hitSprite, q = at(cx - box[0] * 0.1, cy - box[1] * 0.1);
+        if (ph && d < 0.15) { const u = smooth(-0.45, 0, d), w = 620 * (0.8 + 0.4 * u), h = w * ph.height / ph.width, x = lerp(-w * 0.6, q[0], u), y = lerp(q[1] + 120, q[1], u);
+          c.save(); c.globalCompositeOperation = 'lighter';
+          for (let j = 5; j >= 0; j--) { c.globalAlpha = (j ? 0.12 * (6 - j) : 1) * (1 - smooth(0.05, 0.15, d)); c.drawImage(ph, x - w / 2 - j * 90 * (1 - 0.5 * u), y - h / 2 + j * 12, w, h); }   // 殘影往後拖
+          c.restore(); this._speedLines(lt, 1 - smooth(-0.05, 0.1, d), 77, 1); }
+        if (d >= 0) {
+          this._explosion(q[0], q[1], d, 3.0, 9100, ORANGE); this._explosion(q[0] - 120, q[1] + 80, d - 0.12, 2.0, 9101, ORANGE); this._explosion(q[0] + 110, q[1] - 90, d - 0.24, 2.0, 9102, FIRE);
+          for (let i = 0; i < 40; i++) { const r = rng(9200 + i), ang = r() * Math.PI * 2, sp = 300 + 800 * r(), a = d - 0.05;   // 火羽四散
+            if (a < 0 || a > 1.6) continue; const x = q[0] + Math.cos(ang) * sp * a, y = q[1] + Math.sin(ang) * sp * a + 200 * a * a;
+            this._glow(x, y, 10 + 10 * r(), i % 3 ? ORANGE : YELLOW, 1.1 * (1 - a / 1.6)); }
+          for (let i = 0; i < 3; i++) { const a = d - i * 0.1; if (a < 0 || a > 0.7) continue;   // 衝擊火環
+            c.save(); c.strokeStyle = rgba(i % 2 ? YELLOW : ORANGE, 0.9 * (1 - a / 0.7)); c.lineWidth = 12 * (1 - a / 0.7);
+            c.beginPath(); c.ellipse(q[0], q[1], 60 + 900 * a, 40 + 560 * a, 0, 0, Math.PI * 2); c.stroke(); c.restore(); }
+          if (d < 0.45) { c.fillStyle = rgba([255, 200, 120], 0.85 * (1 - d / 0.45)); c.fillRect(0, 0, W, H); }   // 全屏火光
+          if (d > 1.6) this._explosion(q[0], q[1], d - 1.6, 2.4, 9300, ORANGE); }
+      }
 
       else if (k === 'gold') {                    // ⑨ 天地終焉：敵機身上亂數爆炸，金色火花紛飛籠罩全螢幕
         const q = at(cx, cy);
@@ -1148,6 +1300,7 @@
           if (a < 1.6) for (let j = 0; j < 22; j++) { const rr = rng(8700 + i * 31 + j), ang = rr() * Math.PI * 2, sp = 500 + 900 * rr();
             const x = px + Math.cos(ang) * sp * a, y = py + Math.sin(ang) * sp * a + 120 * a * a, f = 1 - a / 1.6;
             this._line(x, y, x - Math.cos(ang) * 40, y - Math.sin(ang) * 40, j % 3 ? GOLD : [255, 250, 220], 1.2 * f, 3); } }
+        { const db = d - 1.5; if (db > 0 && db < 1.2) this._au('S_ti18_boom', q[0], q[1] - box[1] * 0.1, (box[0] * 1.2) * (0.5 + 1.4 * smooth(0, 0.5, db)), { alpha: 1 - smooth(0.7, 1.2, db), blend: 'lighter' }); }   // 真紅大爆炸
         const wash = smooth(0.3, 1.2, d) * (1 - smooth(2.3, 2.9, lt));
         c.save(); c.globalCompositeOperation = 'lighter';
         const gr = c.createRadialGradient(q[0], q[1], 0, q[0], q[1], W); gr.addColorStop(0, rgba(GOLD, 0.35 * wash)); gr.addColorStop(0.6, rgba([230, 150, 30], 0.28 * wash)); gr.addColorStop(1, rgba([200, 90, 10], 0.22 * wash));
@@ -1231,12 +1384,12 @@
         const th = lt * (5 + 3 * (1 - h)) + r() * Math.PI * 2, z = Math.sin(th);
         if ((side < 0 && z > 0) || (side > 0 && z <= 0)) continue;
         const x = ex + wob + Math.cos(th) * rad, sz = (45 + 60 * r()) * (0.6 + h * 0.7);
-        c.save(); c.globalAlpha = (side < 0 ? 0.45 : 0.75) * g * f * (0.6 + 0.4 * r());
+        c.save(); c.globalAlpha = (side < 0 ? 0.45 : 0.75) * g * f * (0.6 + 0.4 * r()) * (this.auVfx && this.auVfx.S_ti15_tornado ? 0.5 : 1);   // 2026-10-25：落葉 50%
         c.drawImage(this._tinted(puff, cols[i % 4]), x - sz / 2, y - sz * 0.35, sz, sz * 0.7); c.restore(); }
       if (side > 0) {   // 外圍雲霧、捲起的碎屑
         for (let i = 0; i < 26; i++) { const r = rng(5400 + i), a = lt * (0.6 + r()) + r() * 6.3, rad = box[0] * (1.0 + 0.6 * r());
           const x = ex + Math.cos(a) * rad, y = cy + box[1] * (0.6 - 1.4 * r()), sz = 140 + 160 * r();
-          c.save(); c.globalAlpha = 0.25 * g * f; c.drawImage(this._tinted(puff, [90, 180, 80]), x - sz / 2, y - sz / 2, sz, sz); c.restore(); }
+          c.save(); c.globalAlpha = 0.25 * g * f * (this.auVfx && this.auVfx.S_ti15_tornado ? 0.5 : 1); c.drawImage(this._tinted(puff, [90, 180, 80]), x - sz / 2, y - sz / 2, sz, sz); c.restore(); }
         for (let i = 0; i < 30; i++) { const r = rng(5500 + i), a = lt * (4 + 3 * r()) + r() * 6.3, h = (lt * 0.3 + r()) % 1, rad = box[0] * (0.3 + 0.7 * h);
           c.fillStyle = rgba([40, 60, 30], 0.8 * g * f); c.fillRect(ex + Math.cos(a) * rad, base - (base - top) * h, 6, 4); }
       }
@@ -1265,13 +1418,13 @@
       if (beamOn && lt >= beamOn[0] && lt < beamOn[1] + 0.15) { const k = smooth(beamOn[0], beamOn[0] + 0.08, lt) * (1 - smooth(beamOn[1], beamOn[1] + 0.15, lt));
         const y = cy - box[1] * 0.05;
         if (!this._au('S_au05_beam', cx + 40, y, cx + 90, { ax: 1, h: 170 * (0.9 + 0.1 * Math.sin(lt * 40)), alpha: k, blend: 'lighter' })) { this._line(-50, y, cx, y, CYAN, 1.3 * k, 38); this._line(-50, y, cx, y, WHITE, 1.4 * k, 12); }
-        this._au('S_au05_burst', cx - 10, y, 260 + 40 * Math.sin(lt * 30), { alpha: 0.9 * k, blend: 'lighter' });
+        { const bs = 260 + 40 * Math.sin(lt * 30); this._au('S_au05_burst', cx - 10, y, bs * 0.5, { h: bs, alpha: 0.9 * k, blend: 'lighter' }); }   // B3：側面看壓扁
         this._glow(cx - 20, y, 50 + 10 * Math.sin(lt * 40), CYAN, 1.2 * k); this._sparks(cx - 10, y, (lt - beamOn[0]) % 0.6, 10, 500 + Math.floor((lt - beamOn[0]) / 0.6), 0, 2.4, 420); }
       // 巨型光束（第 8 招）：粗到吞沒整台
       if (megaOn && lt >= megaOn[0] && lt < megaOn[1] + 0.3) { const k = smooth(megaOn[0], megaOn[0] + 0.12, lt) * (1 - smooth(megaOn[1], megaOn[1] + 0.3, lt));
         const w = box[1] * 0.95 * (0.9 + 0.1 * Math.sin(lt * 30));
-        this._au('S_au08_plasma', -40, cy, W + 120, { ax: 0, h: w * 1.25, alpha: k, blend: 'lighter' });   // 等離子光柱素材（底下程式光調淡，保留亮度）
-        c.save(); c.globalCompositeOperation = 'lighter'; if (this.auVfx && this.auVfx.S_au08_plasma) c.globalAlpha = 0.45;
+        this._au('S_au08_plasma', -40, cy, W + 120, { ax: 0, h: w * 1.25, alpha: 0.5 * k, blend: 'lighter' });   // 2026-10-25 開發者：透明度 50%   // 等離子光柱素材（底下程式光調淡，保留亮度）
+        c.save(); c.globalCompositeOperation = 'lighter'; if (this.auVfx && this.auVfx.S_au08_plasma) c.globalAlpha = 0.5;
         const g = c.createLinearGradient(0, cy - w / 2, 0, cy + w / 2); g.addColorStop(0, rgba(CYAN, 0)); g.addColorStop(0.25, rgba(CYAN, 0.7 * k)); g.addColorStop(0.5, rgba(WHITE, 0.95 * k)); g.addColorStop(0.75, rgba(CYAN, 0.7 * k)); g.addColorStop(1, rgba(CYAN, 0));
         c.fillStyle = g; c.fillRect(0, cy - w / 2, W, w); c.restore();
         for (let i = 0; i < 8; i++) { const rr = rng(600 + i + Math.floor(lt * 10)); this._line(rr() * W, cy + (rr() - 0.5) * w, rr() * W + 200, cy + (rr() - 0.5) * w, ICE, 0.6 * k, 2); } }
@@ -1283,16 +1436,22 @@
           if (d >= 0) { if (d < 0.15) this._glow(h.p[0], h.p[1], 14, ORANGE, 1.2 * (1 - d / 0.15)); this._sparks(h.p[0], h.p[1], d, 5, 1000 + i, Math.PI, 1.6, 300);
             if (!this._au('S_au04_hole', h.p[0], h.p[1], 22, { rot: i })) { c.fillStyle = 'rgba(15,12,10,0.9)'; c.beginPath(); c.arc(h.p[0], h.p[1], 3.5, 0, Math.PI * 2); c.fill(); } }
         } else if (h.k === 'scatter') {
-          if (d > -0.12 && d < 0.1) { const k = d < 0 ? 1 + d / 0.12 : 1 - d / 0.1, y0 = h.p[1] + (i % 3 - 1) * 120; this._line(-50, y0, h.p[0], h.p[1], CYAN, 0.7 * k, 6);
-            if (d < 0) { const u = 1 + d / 0.12; this._au('S_au06_orb', lerp(-50, h.p[0], u), lerp(y0, h.p[1], u), 110, { ax: 0.8, rot: Math.atan2(h.p[1] - y0, h.p[0] + 50), blend: 'lighter' }); } }
-          if (d >= 0 && d < 0.3) this._au('S_au06_flash', h.p[0], h.p[1], 200 + 300 * d, { alpha: 1 - d / 0.3, blend: 'lighter' });
+          if (d > -0.12 && d < 0.1) { const k = d < 0 ? 1 + d / 0.12 : 1 - d / 0.1, y0 = h.p[1] + ((i * 3) % 7 - 3) * 170;   // B3：扇形約 ±30°
+            if (!(this.auVfx && this.auVfx.S_au06_orb)) this._line(-50, y0, h.p[0], h.p[1], CYAN, 0.7 * k, 6);
+            if (d < 0) { const u = 1 + d / 0.12, ang = Math.atan2(h.p[1] - y0, h.p[0] + 50), ox = lerp(-50, h.p[0], u), oy = lerp(y0, h.p[1], u);
+              this._line(ox - Math.cos(ang) * 90, oy - Math.sin(ang) * 90, ox, oy, CYAN, 0.5, 4);   // 短殘光
+              this._au('S_au06_orb', ox, oy, 170, { ax: 0.8, rot: ang, blend: 'lighter' }); } }
+          if (d >= 0 && d < 0.3) { const y0 = h.p[1] + ((i * 3) % 7 - 3) * 170, fs = 200 + 300 * d; this._au('S_au06_flash', h.p[0], h.p[1], fs * 0.5, { h: fs, rot: Math.atan2(h.p[1] - y0, h.p[0] + 50), alpha: 1 - d / 0.3, blend: 'lighter' }); }   // B3：命中閃光順著光彈方向壓扁
           if (d >= 0) this._explosion(h.p[0], h.p[1], d, 0.7 + 0.1 * L, 2000 + i, CYAN);
         } else if (h.k === 'missile') {
           if (d > -0.35 && d < 0) { const u = 1 + d / 0.35, sx = -80, sy = -60 + (i % 4) * 30, mx = (sx + h.p[0]) / 2, my = -120;
             const q = (a, b, m) => (1 - u) * (1 - u) * a + 2 * (1 - u) * u * m + u * u * b; const x = q(sx, h.p[0], mx), y = q(sy, h.p[1], my);
             const u2 = Math.max(0, u - 0.12), x2 = (1 - u2) * (1 - u2) * sx + 2 * (1 - u2) * u2 * mx + u2 * u2 * h.p[0], y2 = (1 - u2) * (1 - u2) * sy + 2 * (1 - u2) * u2 * my + u2 * u2 * h.p[1];
-            this._line(x2, y2, x, y, [230, 230, 230], 0.8, 5);
-            if (!this._au('S_au07_missile', x, y, 90, { ax: 0.85, rot: Math.atan2(y - y2, x - x2) })) this._glow(x, y, 8, ORANGE, 1.2); }
+            if (this.auVfx && this.auVfx.S_au07_missile) {
+              for (let j = 1; j <= 5; j++) { const uj = Math.max(0, u - j * 0.05), xj = (1 - uj) * (1 - uj) * sx + 2 * (1 - uj) * uj * mx + uj * uj * h.p[0], yj = (1 - uj) * (1 - uj) * sy + 2 * (1 - uj) * uj * my + uj * uj * h.p[1];
+                c.fillStyle = rgba([235, 235, 235], 0.35 * (1 - j / 6)); c.beginPath(); c.arc(xj, yj, 5 + j * 2.5, 0, Math.PI * 2); c.fill(); }   // 小煙團
+              this._au('S_au07_missile', x, y, 170, { ax: 0.85, rot: Math.atan2(y - y2, x - x2) });
+            } else { this._line(x2, y2, x, y, [230, 230, 230], 0.8, 5); this._glow(x, y, 8, ORANGE, 1.2); } }
           if (d >= 0) this._explosion(h.p[0], h.p[1], d, 0.9 + 0.1 * L, 3000 + i, ORANGE);
         } });
       // 第 5 招光束結束時的爆炸

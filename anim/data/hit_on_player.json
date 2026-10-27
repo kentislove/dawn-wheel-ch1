@@ -52,10 +52,6 @@
    "jitter": 0,
    "seed": 21,
    "hitScale": 0.42,
-   "src": "E03_smoke",
-   "srcLen": 1.0,
-   "srcScale": 0.6,
-   "srcY": 0.25,
    "sprites": true,
    "shellSpr": "S_rocket"
   },
@@ -67,13 +63,10 @@
    "span": 0.9,
    "seed": 102,
    "hitScale": 0.36,
-   "src": "E03_smoke",
-   "srcLen": 1.0,
-   "srcScale": 0.6,
-   "srcY": 0.25,
    "sprites": true,
    "shellSpr": "S_rocket"
-  }
+  },
+  "_v12": "2026-10-27 開發者：E01 火箭彈受擊畫面出現鐵甲犀牛 → 拿掉發射煙（E03_smoke 是從鐵甲犀牛動畫裁下來的，含犀牛角與砲管）"
  },
  "E02_01": {
   "DAMAGE": {
