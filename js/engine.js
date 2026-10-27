@@ -1412,15 +1412,19 @@ function playMV(needTap) {
     };
     const finish = () => {
       if (done) return; done = true;
-      v.pause(); v.removeAttribute('src'); v.load();
+      v.pause(); v.removeAttribute('src'); v.load(); $('mvLoading').style.display = 'none';
       L.style.display = 'none'; window.removeEventListener('keydown', onKey, true); resolve();
     };
     const start = () => {
       st.style.display = 'none'; SND.stopMusic();
       try { localStorage.setItem(MV_SEEN, '1'); } catch (e) { /* 忽略 */ }
+      $('mvLoading').style.display = 'block';
       v.src = 'assets/mv/opening_mv.mp4'; v.muted = SND.muted; v.play().catch(() => {});
     };
     v.onended = finish;
+    // v15：影片還在下載時顯示「MV 載入中」，開始播放就收起來
+    v.onwaiting = () => { $('mvLoading').style.display = 'block'; };
+    v.onplaying = () => { $('mvLoading').style.display = 'none'; };
     $('mvSkip').onclick = (e) => { e.stopPropagation(); finish(); };
     st.onclick = start;
     L.style.display = 'flex'; SND.stopMusic();

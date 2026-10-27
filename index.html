@@ -213,7 +213,9 @@
 <!-- v13：開場 MV（第一次進來時播；標題「觀看 MV」可重看） -->
 <div class="mv-layer" id="mvLayer" style="display:none">
   <div class="mv-start" id="mvStart"><div class="mv-start-title">破曉因果之輪</div><div class="mv-start-hint">點一下畫面開始</div></div>
-  <video id="mvVideo" playsinline preload="none" poster="assets/mv/opening_mv_poster.jpg"></video>
+  <!-- v15：拿掉 MV 截圖佔位（那張是配給廣播的畫面）；等影片載入時只顯示「載入中」 -->
+  <video id="mvVideo" playsinline preload="none"></video>
+  <div class="mv-loading" id="mvLoading" style="display:none">MV 載入中……</div>
   <button class="mv-skip" id="mvSkip">跳過 ▶▶</button>
 </div>
 
