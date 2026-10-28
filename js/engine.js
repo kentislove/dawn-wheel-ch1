@@ -1447,6 +1447,7 @@ function playMV(needTap) {
     const finish = () => {
       if (done) return; done = true;
       v.pause(); v.removeAttribute('src'); v.load(); $('mvLoading').style.display = 'none';
+      try { localStorage.setItem(MV_SEEN, '1'); } catch (e) { /* 忽略 */ }   // v19：在開始頁直接按跳過也算看過
       L.style.display = 'none'; window.removeEventListener('keydown', onKey, true); resolve();
     };
     const start = () => {

@@ -216,7 +216,10 @@ button { font: inherit; }
 .mv-layer video { width: 100%; height: 100%; object-fit: contain; background: #000; }
 .mv-start { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 8vh; cursor: pointer;
   /* v15：遊戲封面（全員海報）放 assets/cover/cover.jpg 就會顯示；還沒有時只有深藍漸層 */
-  background: url("assets/cover/cover.jpg") center / contain no-repeat, radial-gradient(ellipse at center, #10245a 0%, #050b1c 70%); }
+  background: #050b1c url("assets/cover/cover_landscape.jpg") center / contain no-repeat; }   /* v19：橫式螢幕用人物封面 */
+@media (orientation: portrait) { .mv-start { background-image: url("assets/cover/cover_portrait.jpg"); } }   /* v19：直式（手機）用機體封面 */
+.mv-start .mv-start-title { display: none; }   /* v19：封面圖上已經有標題字 */
+.mv-start { padding-bottom: 3vh; }
 .mv-start-title, .mv-start-hint { text-shadow: 0 0 12px #000, 0 0 24px #000; }
 .mv-loading { position: absolute; z-index: 1; color: var(--muted); letter-spacing: 3px; pointer-events: none; }
 .mv-start-title { font-size: 2.6rem; letter-spacing: 8px; color: #fff; text-shadow: 0 0 24px #38bdf8; font-weight: 900; }
@@ -260,3 +263,7 @@ button { font: inherit; }
 @keyframes sfBand { 0% { transform: scaleY(0); opacity: 0; } 12% { transform: scaleY(1); opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes sfFace { 0% { transform: translateX(-60px); opacity: 0; } 18% { transform: none; opacity: 1; } }
 @keyframes sfText { 0% { transform: translateX(80px) skewX(-12deg); opacity: 0; } 22% { transform: none; opacity: 1; } 100% { transform: translateX(-12px); } }
+
+/* v19：標題選單背景＝遊戲封面（壓暗，讓選單看得清楚） */
+.title#title { background: linear-gradient(rgba(5,11,28,.55), rgba(5,11,28,.82)), #050b1c url("assets/cover/bg_landscape.jpg") center / cover no-repeat; }   /* 用沒有標題字的原圖，避免和選單標題重複 */
+@media (orientation: portrait) { .title#title { background-image: linear-gradient(rgba(5,11,28,.55), rgba(5,11,28,.82)), url("assets/cover/bg_portrait.jpg"); } }

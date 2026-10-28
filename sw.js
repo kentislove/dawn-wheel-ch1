@@ -6,7 +6,7 @@
  *       網頁、程式、JSON 仍然每次先問伺服器（這樣更新遊戲時玩家會拿到新版）。
  * 更新素材時：把 CACHE 的版本號改掉，舊的快取會自動刪除。
  */
-const CACHE = 'srw-ch1-assets-v12';
+const CACHE = 'srw-ch1-assets-v19';   // v19：封面圖更新過，換版本號讓舊快取作廢
 const ASSET = /\/(anim\/)?assets\/.+\.(webp|png|jpg|mp3)$/i;
 
 self.addEventListener('install', () => self.skipWaiting());
